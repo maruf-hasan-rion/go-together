@@ -1,0 +1,32 @@
+model User {
+    id       String   @id @default(uuid())
+    email    String   @unique
+    password String
+    fullName String
+    role     UserRole @default(USER)
+
+    // Profile Information
+    bio          String?  @db.Text
+    profilePhoto String // Cloudinary URL
+    location     String? // City/Area
+    interests    String[] // Array of interests
+
+    // Ratings
+    averageRating Float? @default(0)
+    totalReviews  Int    @default(0)
+
+    // Timestamps
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    // hostedEvents    Event[]   @relation("HostedEvents")
+    // bookings        Booking[]
+    // reviewsGiven    Review[]  @relation("ReviewsGiven")
+    // reviewsReceived Review[]  @relation("ReviewsReceived")
+    // payments        Payment[]
+
+    // @@index([email])
+    // @@index([role])
+    @@map("users")
+}

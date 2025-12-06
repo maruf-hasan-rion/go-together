@@ -20,8 +20,20 @@ export type UserModel = runtime.Types.Result.DefaultSelection<Prisma.$UserPayloa
 
 export type AggregateUser = {
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
+}
+
+export type UserAvgAggregateOutputType = {
+  averageRating: number | null
+  totalReviews: number | null
+}
+
+export type UserSumAggregateOutputType = {
+  averageRating: number | null
+  totalReviews: number | null
 }
 
 export type UserMinAggregateOutputType = {
@@ -30,6 +42,13 @@ export type UserMinAggregateOutputType = {
   password: string | null
   fullName: string | null
   role: $Enums.UserRole | null
+  bio: string | null
+  profilePhoto: string | null
+  location: string | null
+  averageRating: number | null
+  totalReviews: number | null
+  createdAt: Date | null
+  updatedAt: Date | null
 }
 
 export type UserMaxAggregateOutputType = {
@@ -38,6 +57,13 @@ export type UserMaxAggregateOutputType = {
   password: string | null
   fullName: string | null
   role: $Enums.UserRole | null
+  bio: string | null
+  profilePhoto: string | null
+  location: string | null
+  averageRating: number | null
+  totalReviews: number | null
+  createdAt: Date | null
+  updatedAt: Date | null
 }
 
 export type UserCountAggregateOutputType = {
@@ -46,9 +72,27 @@ export type UserCountAggregateOutputType = {
   password: number
   fullName: number
   role: number
+  bio: number
+  profilePhoto: number
+  location: number
+  interests: number
+  averageRating: number
+  totalReviews: number
+  createdAt: number
+  updatedAt: number
   _all: number
 }
 
+
+export type UserAvgAggregateInputType = {
+  averageRating?: true
+  totalReviews?: true
+}
+
+export type UserSumAggregateInputType = {
+  averageRating?: true
+  totalReviews?: true
+}
 
 export type UserMinAggregateInputType = {
   id?: true
@@ -56,6 +100,13 @@ export type UserMinAggregateInputType = {
   password?: true
   fullName?: true
   role?: true
+  bio?: true
+  profilePhoto?: true
+  location?: true
+  averageRating?: true
+  totalReviews?: true
+  createdAt?: true
+  updatedAt?: true
 }
 
 export type UserMaxAggregateInputType = {
@@ -64,6 +115,13 @@ export type UserMaxAggregateInputType = {
   password?: true
   fullName?: true
   role?: true
+  bio?: true
+  profilePhoto?: true
+  location?: true
+  averageRating?: true
+  totalReviews?: true
+  createdAt?: true
+  updatedAt?: true
 }
 
 export type UserCountAggregateInputType = {
@@ -72,6 +130,14 @@ export type UserCountAggregateInputType = {
   password?: true
   fullName?: true
   role?: true
+  bio?: true
+  profilePhoto?: true
+  location?: true
+  interests?: true
+  averageRating?: true
+  totalReviews?: true
+  createdAt?: true
+  updatedAt?: true
   _all?: true
 }
 
@@ -113,6 +179,18 @@ export type UserAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: UserAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: UserSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: UserMinAggregateInputType
@@ -143,6 +221,8 @@ export type UserGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
   take?: number
   skip?: number
   _count?: UserCountAggregateInputType | true
+  _avg?: UserAvgAggregateInputType
+  _sum?: UserSumAggregateInputType
   _min?: UserMinAggregateInputType
   _max?: UserMaxAggregateInputType
 }
@@ -153,7 +233,17 @@ export type UserGroupByOutputType = {
   password: string
   fullName: string
   role: $Enums.UserRole
+  bio: string | null
+  profilePhoto: string
+  location: string | null
+  interests: string[]
+  averageRating: number | null
+  totalReviews: number
+  createdAt: Date
+  updatedAt: Date
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
 }
@@ -182,6 +272,14 @@ export type UserWhereInput = {
   password?: Prisma.StringFilter<"User"> | string
   fullName?: Prisma.StringFilter<"User"> | string
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
+  bio?: Prisma.StringNullableFilter<"User"> | string | null
+  profilePhoto?: Prisma.StringFilter<"User"> | string
+  location?: Prisma.StringNullableFilter<"User"> | string | null
+  interests?: Prisma.StringNullableListFilter<"User">
+  averageRating?: Prisma.FloatNullableFilter<"User"> | number | null
+  totalReviews?: Prisma.IntFilter<"User"> | number
+  createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
 }
 
 export type UserOrderByWithRelationInput = {
@@ -190,6 +288,14 @@ export type UserOrderByWithRelationInput = {
   password?: Prisma.SortOrder
   fullName?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  bio?: Prisma.SortOrderInput | Prisma.SortOrder
+  profilePhoto?: Prisma.SortOrder
+  location?: Prisma.SortOrderInput | Prisma.SortOrder
+  interests?: Prisma.SortOrder
+  averageRating?: Prisma.SortOrderInput | Prisma.SortOrder
+  totalReviews?: Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -201,6 +307,14 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   password?: Prisma.StringFilter<"User"> | string
   fullName?: Prisma.StringFilter<"User"> | string
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
+  bio?: Prisma.StringNullableFilter<"User"> | string | null
+  profilePhoto?: Prisma.StringFilter<"User"> | string
+  location?: Prisma.StringNullableFilter<"User"> | string | null
+  interests?: Prisma.StringNullableListFilter<"User">
+  averageRating?: Prisma.FloatNullableFilter<"User"> | number | null
+  totalReviews?: Prisma.IntFilter<"User"> | number
+  createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -209,9 +323,19 @@ export type UserOrderByWithAggregationInput = {
   password?: Prisma.SortOrder
   fullName?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  bio?: Prisma.SortOrderInput | Prisma.SortOrder
+  profilePhoto?: Prisma.SortOrder
+  location?: Prisma.SortOrderInput | Prisma.SortOrder
+  interests?: Prisma.SortOrder
+  averageRating?: Prisma.SortOrderInput | Prisma.SortOrder
+  totalReviews?: Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
+  _avg?: Prisma.UserAvgOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
+  _sum?: Prisma.UserSumOrderByAggregateInput
 }
 
 export type UserScalarWhereWithAggregatesInput = {
@@ -223,6 +347,14 @@ export type UserScalarWhereWithAggregatesInput = {
   password?: Prisma.StringWithAggregatesFilter<"User"> | string
   fullName?: Prisma.StringWithAggregatesFilter<"User"> | string
   role?: Prisma.EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
+  bio?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  profilePhoto?: Prisma.StringWithAggregatesFilter<"User"> | string
+  location?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  interests?: Prisma.StringNullableListFilter<"User">
+  averageRating?: Prisma.FloatNullableWithAggregatesFilter<"User"> | number | null
+  totalReviews?: Prisma.IntWithAggregatesFilter<"User"> | number
+  createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
+  updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
 
 export type UserCreateInput = {
@@ -231,6 +363,14 @@ export type UserCreateInput = {
   password: string
   fullName: string
   role?: $Enums.UserRole
+  bio?: string | null
+  profilePhoto: string
+  location?: string | null
+  interests?: Prisma.UserCreateinterestsInput | string[]
+  averageRating?: number | null
+  totalReviews?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type UserUncheckedCreateInput = {
@@ -239,6 +379,14 @@ export type UserUncheckedCreateInput = {
   password: string
   fullName: string
   role?: $Enums.UserRole
+  bio?: string | null
+  profilePhoto: string
+  location?: string | null
+  interests?: Prisma.UserCreateinterestsInput | string[]
+  averageRating?: number | null
+  totalReviews?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type UserUpdateInput = {
@@ -247,6 +395,14 @@ export type UserUpdateInput = {
   password?: Prisma.StringFieldUpdateOperationsInput | string
   fullName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePhoto?: Prisma.StringFieldUpdateOperationsInput | string
+  location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  interests?: Prisma.UserUpdateinterestsInput | string[]
+  averageRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalReviews?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type UserUncheckedUpdateInput = {
@@ -255,6 +411,14 @@ export type UserUncheckedUpdateInput = {
   password?: Prisma.StringFieldUpdateOperationsInput | string
   fullName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePhoto?: Prisma.StringFieldUpdateOperationsInput | string
+  location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  interests?: Prisma.UserUpdateinterestsInput | string[]
+  averageRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalReviews?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type UserCreateManyInput = {
@@ -263,6 +427,14 @@ export type UserCreateManyInput = {
   password: string
   fullName: string
   role?: $Enums.UserRole
+  bio?: string | null
+  profilePhoto: string
+  location?: string | null
+  interests?: Prisma.UserCreateinterestsInput | string[]
+  averageRating?: number | null
+  totalReviews?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
 }
 
 export type UserUpdateManyMutationInput = {
@@ -271,6 +443,14 @@ export type UserUpdateManyMutationInput = {
   password?: Prisma.StringFieldUpdateOperationsInput | string
   fullName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePhoto?: Prisma.StringFieldUpdateOperationsInput | string
+  location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  interests?: Prisma.UserUpdateinterestsInput | string[]
+  averageRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalReviews?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type UserUncheckedUpdateManyInput = {
@@ -279,6 +459,22 @@ export type UserUncheckedUpdateManyInput = {
   password?: Prisma.StringFieldUpdateOperationsInput | string
   fullName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePhoto?: Prisma.StringFieldUpdateOperationsInput | string
+  location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  interests?: Prisma.UserUpdateinterestsInput | string[]
+  averageRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalReviews?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type StringNullableListFilter<$PrismaModel = never> = {
+  equals?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel> | null
+  has?: string | Prisma.StringFieldRefInput<$PrismaModel> | null
+  hasEvery?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  hasSome?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  isEmpty?: boolean
 }
 
 export type UserCountOrderByAggregateInput = {
@@ -287,6 +483,19 @@ export type UserCountOrderByAggregateInput = {
   password?: Prisma.SortOrder
   fullName?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  bio?: Prisma.SortOrder
+  profilePhoto?: Prisma.SortOrder
+  location?: Prisma.SortOrder
+  interests?: Prisma.SortOrder
+  averageRating?: Prisma.SortOrder
+  totalReviews?: Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
+}
+
+export type UserAvgOrderByAggregateInput = {
+  averageRating?: Prisma.SortOrder
+  totalReviews?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
@@ -295,6 +504,13 @@ export type UserMaxOrderByAggregateInput = {
   password?: Prisma.SortOrder
   fullName?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  bio?: Prisma.SortOrder
+  profilePhoto?: Prisma.SortOrder
+  location?: Prisma.SortOrder
+  averageRating?: Prisma.SortOrder
+  totalReviews?: Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
 }
 
 export type UserMinOrderByAggregateInput = {
@@ -303,6 +519,22 @@ export type UserMinOrderByAggregateInput = {
   password?: Prisma.SortOrder
   fullName?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  bio?: Prisma.SortOrder
+  profilePhoto?: Prisma.SortOrder
+  location?: Prisma.SortOrder
+  averageRating?: Prisma.SortOrder
+  totalReviews?: Prisma.SortOrder
+  createdAt?: Prisma.SortOrder
+  updatedAt?: Prisma.SortOrder
+}
+
+export type UserSumOrderByAggregateInput = {
+  averageRating?: Prisma.SortOrder
+  totalReviews?: Prisma.SortOrder
+}
+
+export type UserCreateinterestsInput = {
+  set: string[]
 }
 
 export type StringFieldUpdateOperationsInput = {
@@ -313,6 +545,35 @@ export type EnumUserRoleFieldUpdateOperationsInput = {
   set?: $Enums.UserRole
 }
 
+export type NullableStringFieldUpdateOperationsInput = {
+  set?: string | null
+}
+
+export type UserUpdateinterestsInput = {
+  set?: string[]
+  push?: string | string[]
+}
+
+export type NullableFloatFieldUpdateOperationsInput = {
+  set?: number | null
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
+export type DateTimeFieldUpdateOperationsInput = {
+  set?: Date | string
+}
+
 
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -321,6 +582,14 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   password?: boolean
   fullName?: boolean
   role?: boolean
+  bio?: boolean
+  profilePhoto?: boolean
+  location?: boolean
+  interests?: boolean
+  averageRating?: boolean
+  totalReviews?: boolean
+  createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -329,6 +598,14 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   password?: boolean
   fullName?: boolean
   role?: boolean
+  bio?: boolean
+  profilePhoto?: boolean
+  location?: boolean
+  interests?: boolean
+  averageRating?: boolean
+  totalReviews?: boolean
+  createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -337,6 +614,14 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   password?: boolean
   fullName?: boolean
   role?: boolean
+  bio?: boolean
+  profilePhoto?: boolean
+  location?: boolean
+  interests?: boolean
+  averageRating?: boolean
+  totalReviews?: boolean
+  createdAt?: boolean
+  updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectScalar = {
@@ -345,9 +630,17 @@ export type UserSelectScalar = {
   password?: boolean
   fullName?: boolean
   role?: boolean
+  bio?: boolean
+  profilePhoto?: boolean
+  location?: boolean
+  interests?: boolean
+  averageRating?: boolean
+  totalReviews?: boolean
+  createdAt?: boolean
+  updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "password" | "fullName" | "role", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "password" | "fullName" | "role" | "bio" | "profilePhoto" | "location" | "interests" | "averageRating" | "totalReviews" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 
 export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "User"
@@ -358,6 +651,14 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     password: string
     fullName: string
     role: $Enums.UserRole
+    bio: string | null
+    profilePhoto: string
+    location: string | null
+    interests: string[]
+    averageRating: number | null
+    totalReviews: number
+    createdAt: Date
+    updatedAt: Date
   }, ExtArgs["result"]["user"]>
   composites: {}
 }
@@ -786,6 +1087,14 @@ export interface UserFieldRefs {
   readonly password: Prisma.FieldRef<"User", 'String'>
   readonly fullName: Prisma.FieldRef<"User", 'String'>
   readonly role: Prisma.FieldRef<"User", 'UserRole'>
+  readonly bio: Prisma.FieldRef<"User", 'String'>
+  readonly profilePhoto: Prisma.FieldRef<"User", 'String'>
+  readonly location: Prisma.FieldRef<"User", 'String'>
+  readonly interests: Prisma.FieldRef<"User", 'String[]'>
+  readonly averageRating: Prisma.FieldRef<"User", 'Float'>
+  readonly totalReviews: Prisma.FieldRef<"User", 'Int'>
+  readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
+  readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
 }
     
 
