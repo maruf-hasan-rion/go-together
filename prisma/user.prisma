@@ -7,7 +7,7 @@ model User {
 
     // Profile Information
     bio          String?  @db.Text
-    profilePhoto String // Cloudinary URL
+    profilePhoto String? // Cloudinary URL
     location     String? // City/Area
     interests    String[] // Array of interests
 

@@ -234,7 +234,7 @@ export type UserGroupByOutputType = {
   fullName: string
   role: $Enums.UserRole
   bio: string | null
-  profilePhoto: string
+  profilePhoto: string | null
   location: string | null
   interests: string[]
   averageRating: number | null
@@ -273,7 +273,7 @@ export type UserWhereInput = {
   fullName?: Prisma.StringFilter<"User"> | string
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   bio?: Prisma.StringNullableFilter<"User"> | string | null
-  profilePhoto?: Prisma.StringFilter<"User"> | string
+  profilePhoto?: Prisma.StringNullableFilter<"User"> | string | null
   location?: Prisma.StringNullableFilter<"User"> | string | null
   interests?: Prisma.StringNullableListFilter<"User">
   averageRating?: Prisma.FloatNullableFilter<"User"> | number | null
@@ -289,7 +289,7 @@ export type UserOrderByWithRelationInput = {
   fullName?: Prisma.SortOrder
   role?: Prisma.SortOrder
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
-  profilePhoto?: Prisma.SortOrder
+  profilePhoto?: Prisma.SortOrderInput | Prisma.SortOrder
   location?: Prisma.SortOrderInput | Prisma.SortOrder
   interests?: Prisma.SortOrder
   averageRating?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -308,7 +308,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   fullName?: Prisma.StringFilter<"User"> | string
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   bio?: Prisma.StringNullableFilter<"User"> | string | null
-  profilePhoto?: Prisma.StringFilter<"User"> | string
+  profilePhoto?: Prisma.StringNullableFilter<"User"> | string | null
   location?: Prisma.StringNullableFilter<"User"> | string | null
   interests?: Prisma.StringNullableListFilter<"User">
   averageRating?: Prisma.FloatNullableFilter<"User"> | number | null
@@ -324,7 +324,7 @@ export type UserOrderByWithAggregationInput = {
   fullName?: Prisma.SortOrder
   role?: Prisma.SortOrder
   bio?: Prisma.SortOrderInput | Prisma.SortOrder
-  profilePhoto?: Prisma.SortOrder
+  profilePhoto?: Prisma.SortOrderInput | Prisma.SortOrder
   location?: Prisma.SortOrderInput | Prisma.SortOrder
   interests?: Prisma.SortOrder
   averageRating?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -348,7 +348,7 @@ export type UserScalarWhereWithAggregatesInput = {
   fullName?: Prisma.StringWithAggregatesFilter<"User"> | string
   role?: Prisma.EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
   bio?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
-  profilePhoto?: Prisma.StringWithAggregatesFilter<"User"> | string
+  profilePhoto?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   location?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   interests?: Prisma.StringNullableListFilter<"User">
   averageRating?: Prisma.FloatNullableWithAggregatesFilter<"User"> | number | null
@@ -364,7 +364,7 @@ export type UserCreateInput = {
   fullName: string
   role?: $Enums.UserRole
   bio?: string | null
-  profilePhoto: string
+  profilePhoto?: string | null
   location?: string | null
   interests?: Prisma.UserCreateinterestsInput | string[]
   averageRating?: number | null
@@ -380,7 +380,7 @@ export type UserUncheckedCreateInput = {
   fullName: string
   role?: $Enums.UserRole
   bio?: string | null
-  profilePhoto: string
+  profilePhoto?: string | null
   location?: string | null
   interests?: Prisma.UserCreateinterestsInput | string[]
   averageRating?: number | null
@@ -396,7 +396,7 @@ export type UserUpdateInput = {
   fullName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  profilePhoto?: Prisma.StringFieldUpdateOperationsInput | string
+  profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   interests?: Prisma.UserUpdateinterestsInput | string[]
   averageRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -412,7 +412,7 @@ export type UserUncheckedUpdateInput = {
   fullName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  profilePhoto?: Prisma.StringFieldUpdateOperationsInput | string
+  profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   interests?: Prisma.UserUpdateinterestsInput | string[]
   averageRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -428,7 +428,7 @@ export type UserCreateManyInput = {
   fullName: string
   role?: $Enums.UserRole
   bio?: string | null
-  profilePhoto: string
+  profilePhoto?: string | null
   location?: string | null
   interests?: Prisma.UserCreateinterestsInput | string[]
   averageRating?: number | null
@@ -444,7 +444,7 @@ export type UserUpdateManyMutationInput = {
   fullName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  profilePhoto?: Prisma.StringFieldUpdateOperationsInput | string
+  profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   interests?: Prisma.UserUpdateinterestsInput | string[]
   averageRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -460,7 +460,7 @@ export type UserUncheckedUpdateManyInput = {
   fullName?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  profilePhoto?: Prisma.StringFieldUpdateOperationsInput | string
+  profilePhoto?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   location?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   interests?: Prisma.UserUpdateinterestsInput | string[]
   averageRating?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
@@ -652,7 +652,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     fullName: string
     role: $Enums.UserRole
     bio: string | null
-    profilePhoto: string
+    profilePhoto: string | null
     location: string | null
     interests: string[]
     averageRating: number | null

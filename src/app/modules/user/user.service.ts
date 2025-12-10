@@ -18,7 +18,7 @@ const createUser = async (req: Request) => {
       fullName: req.body.fullName,
       email: req.body.email,
       password: hashPassword,
-      profilePhoto: req.body.profilePhoto,
+      profilePhoto: req.body.profilePhoto || null,
     },
   });
   return result;
