@@ -16,3 +16,60 @@ export const UserRole = {
 } as const
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole]
+
+
+export const ApplicationStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED'
+} as const
+
+export type ApplicationStatus = (typeof ApplicationStatus)[keyof typeof ApplicationStatus]
+
+
+export const EventStatus = {
+  OPEN: 'OPEN',
+  FULL: 'FULL',
+  CANCELLED: 'CANCELLED',
+  COMPLETED: 'COMPLETED'
+} as const
+
+export type EventStatus = (typeof EventStatus)[keyof typeof EventStatus]
+
+
+export const EventType = {
+  CONCERT: 'CONCERT',
+  SPORTS: 'SPORTS',
+  HIKING: 'HIKING',
+  GAMING: 'GAMING',
+  DINNER: 'DINNER',
+  TECH_MEETUP: 'TECH_MEETUP',
+  WORKSHOP: 'WORKSHOP',
+  OUTDOOR: 'OUTDOOR',
+  ARTS: 'ARTS',
+  SOCIAL: 'SOCIAL',
+  OTHER: 'OTHER'
+} as const
+
+export type EventType = (typeof EventType)[keyof typeof EventType]
+
+
+export const BookingStatus = {
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  CANCELLED: 'CANCELLED',
+  COMPLETED: 'COMPLETED'
+} as const
+
+export type BookingStatus = (typeof BookingStatus)[keyof typeof BookingStatus]
+
+
+export const PaymentStatus = {
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  REFUNDED: 'REFUNDED',
+  FREE: 'FREE'
+} as const
+
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus]

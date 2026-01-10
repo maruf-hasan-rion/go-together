@@ -3,3 +3,45 @@ enum UserRole {
     HOST
     ADMIN
 }
+
+enum ApplicationStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum EventStatus {
+    OPEN
+    FULL
+    CANCELLED
+    COMPLETED
+}
+
+enum EventType {
+    CONCERT
+    SPORTS
+    HIKING
+    GAMING
+    DINNER
+    TECH_MEETUP
+    WORKSHOP
+    OUTDOOR
+    ARTS
+    SOCIAL
+    OTHER
+}
+
+enum BookingStatus {
+    PENDING
+    CONFIRMED
+    CANCELLED
+    COMPLETED
+}
+
+enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
+    FREE
+}

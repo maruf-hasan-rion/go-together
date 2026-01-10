@@ -1,0 +1,60 @@
+model Event {
+    id String @id @default(uuid())
+
+    title       String
+    description String      @db.Text
+    type        EventType[]
+    image       String?
+
+    eventDate DateTime
+    location  String
+
+    minParticipants     Int @default(2)
+    maxParticipants     Int
+    currentParticipants Int @default(0)
+
+    joiningFee Float @default(0)
+
+    status EventStatus @default(OPEN)
+
+    hostId String
+    host   User   @relation("HostedEvents", fields: [hostId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    bookings Booking[]
+    reviews  Review[]
+    //  payments          Payment[]
+
+    // @@index([hostId])
+    // @@index([eventDate])
+    // @@index([type])
+    // @@index([status])
+    //  @@index([city])
+    @@map("events")
+}
+
+model Booking {
+    id String @id @default(uuid())
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    eventId String
+    event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+    status      BookingStatus @default(PENDING)
+    // numberOfTickets Int           @default(1)
+    totalAmount Float
+    payments    Payment[]
+
+    bookedAt  DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([userId, eventId])
+    @@index([userId])
+    @@index([eventId])
+    @@index([status])
+    @@map("bookings")
+}

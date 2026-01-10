@@ -22,15 +22,15 @@ const login = async (payload: { email: string; password: string }) => {
   }
 
   const accessToken = jwtHelper.generateToken(
-    { email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role },
     config.jwt.jwt_secret as Secret,
-    "1h"
+    config.jwt.jwt_secret_expires_in as string
   );
 
   const refreshToken = jwtHelper.generateToken(
-    { email: user.email, role: user.role },
+    { id: user.id, email: user.email, role: user.role },
     config.jwt.refresh_token_secret as Secret,
-    "90d"
+    config.jwt.refresh_token_expires_in as string
   );
 
   return {
@@ -58,11 +58,12 @@ const refreshToken = async (token: string) => {
 
   const accessToken = jwtHelper.generateToken(
     {
+      id: userData.id,
       email: userData.email,
       role: userData.role,
     },
     config.jwt.jwt_secret as Secret,
-    config.jwt.expires_in as string
+    config.jwt.jwt_secret_expires_in as string
   );
 
   return {
@@ -83,17 +84,154 @@ const getMe = async (session: any) => {
     },
   });
 
-  const { id, email, role } = userData;
+  // const { id, email, role } = userData;
 
-  return {
-    id,
-    email,
-    role,
-  };
+  return userData;
 };
 
+// const applyHost = async (user: any) => {
+//   const accessToken = user.accessToken;
+
+//   const decodedData = jwtHelper.verifyToken(
+//     accessToken,
+//     config.jwt.jwt_secret as Secret
+//   );
+//   const userData = await prisma.user.findUniqueOrThrow({
+//     where: {
+//       id: decodedData.userId,
+//     },
+//     include: {
+//       client: true,
+//     },
+//   });
+
+//   if (!userData) {
+//     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+//   }
+
+//   if (userData.status === UserStatus.SUSPENDED) {
+//     throw new ApiError(
+//       httpStatus.FORBIDDEN,
+//       "Your account has been suspended. You cannot perform this operation."
+//     );
+//   }
+
+//   if (!userData.client) {
+//     throw new ApiError(httpStatus.BAD_REQUEST, "Client profile not found");
+//   }
+
+//   const existingApplication = await prisma.hostApplication.findFirst({
+//     where: {
+//       userId: userData.id,
+//       status: HostApplicationStatus.PENDING,
+//     },
+//   });
+//   if (existingApplication) {
+//     throw new ApiError(
+//       httpStatus.BAD_REQUEST,
+//       "You have already applied to be a host. Please wait for approval."
+//     );
+//   }
+
+//   const result = await prisma.$transaction(async (transactionClient) => {
+//     const application = await transactionClient.hostApplication.create({
+//       data: {
+//         userId: userData.id,
+//         name: userData.client!.name,
+//         email: userData.client!.email,
+//       },
+//     });
+
+//     const userUpdate = await transactionClient.user.update({
+//       where: {
+//         id: userData.id,
+//       },
+//       data: {
+//         status: UserStatus.PENDING,
+//       },
+//     });
+
+//     const clientData = await transactionClient.client.findFirst({
+//       where: {
+//         email: userData.email,
+//       },
+//     });
+
+//     await sendEmail({
+//       to: userData.email,
+//       subject: "Your Host Application Submitted",
+//       templateName: "host-application-submitted",
+//       templateData: {
+//         name: clientData ? clientData.name : userData.email.split("@")[0],
+//         applicationId: application.id,
+//       },
+//     });
+
+//     return { ...application, ...userUpdate };
+//   });
+
+//   return result;
+// };
+
+// const applyHost = async (user: any) => {
+//   const accessToken = user.accessToken;
+
+//   const decodedData = jwtHelper.verifyToken(
+//     accessToken,
+//     config.jwt.jwt_secret as Secret
+//   );
+//   const userData = await prisma.user.findUniqueOrThrow({
+
+const applyHost = async (
+  userId: any,
+  data: {
+    message: string;
+    // bio: string;
+    // experience?: string;
+    // eventTypes: string[];
+  }
+) => {
+  if (!userId) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
+  }
+  const existing = await prisma.hostApplication.findUnique({
+    where: { userId },
+  });
+
+  if (existing) {
+    return {
+      success: false,
+      message: `Application already ${existing.status.toLowerCase()}`,
+    };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (user?.role === "HOST") {
+    return {
+      success: false,
+      message: "You are already a host",
+    };
+  }
+
+  const application = await prisma.hostApplication.create({
+    data: {
+      userId,
+      message: data.message,
+      // bio: data.bio,
+      // experience: data.experience,
+      // eventTypes: data.eventTypes,
+      status: "PENDING",
+    },
+  });
+
+  return { application };
+};
 export const AuthService = {
   login,
   refreshToken,
   getMe,
+  applyHost,
 };

@@ -3,6 +3,7 @@ import catchAsync from "../../shared/catchAsync";
 import sendResponse from "../../shared/sendResponse";
 import { AuthService } from "./auth.service";
 import httpStatus from "http-status";
+import { IJWTPayload } from "../../types/common";
 
 const login = catchAsync(async (req: Request, res: Response) => {
   const result = await AuthService.login(req.body);
@@ -62,8 +63,24 @@ const getMe = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const applyHost = catchAsync(
+  async (req: Request & { user?: IJWTPayload }, res: Response) => {
+    const userId = req.user?.id;
+    const result = await AuthService.applyHost(userId, req.body);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message:
+        "Application submitted successfully. We will review within 24-48 hours.",
+      data: result,
+    });
+  }
+);
+
 export const AuthController = {
   login,
   refreshToken,
   getMe,
+  applyHost,
 };
