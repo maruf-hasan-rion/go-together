@@ -22,7 +22,7 @@ export default {
   salt_round: process.env.SALT_ROUND,
 
   stripe_secret_key: process.env.STRIPE_SECRET_KEY,
-  webhook_secret_key: process.env.WEBHOOK_SECRET,
+  webhook_secret_key: process.env.WEBHOOK_SECRET_KEY,
 };
 
 // export const deleteImageFromCloudinary = async (url: string) => {
