@@ -1,6 +1,5 @@
 import Stripe from "stripe";
 import { prisma } from "../../shared/prisma";
-// import { PaymentStatus } from "../../../generated/prisma/enums";
 import config from "../../../config";
 import ApiError from "../../errors/ApiError";
 
