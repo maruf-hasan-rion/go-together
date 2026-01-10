@@ -4,16 +4,15 @@ import { fileUploader } from "../../helper/fileUploader";
 import { buildEventSearchQuery, EventSearchParams } from "./event.utils";
 import { UserRole } from "../user/user.interface";
 import { prisma } from "../../shared/prisma";
-import {
-  EventStatus,
-  EventType,
-  PaymentStatus,
-} from "../../../generated/prisma/enums";
+
 import { jwtHelper } from "../../helper/jwtHelper";
 import config, { deleteImageFromCloudinary } from "../../../config";
-
-import { Event, Prisma } from "../../../generated/prisma/client";
-import { Secret } from "jsonwebtoken";
+import {
+  Event,
+  EventStatus,
+  EventType,
+  Prisma,
+} from "../../../generated/prisma/client";
 import { IPaginationOptions } from "../../types/pagination";
 import { paginationHelper } from "../../helper/paginationHelper";
 import { eventSearchableFields } from "../admin/admin.constant";

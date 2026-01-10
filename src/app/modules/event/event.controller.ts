@@ -4,7 +4,7 @@ import sendResponse from "../../shared/sendResponse";
 import httpStatus from "http-status";
 import { EventService } from "./event.service";
 import { IJWTPayload } from "../../types/common";
-import { EventStatus } from "../../../generated/prisma/enums";
+import { EventStatus } from "../../../generated/prisma";
 import ApiError from "../../errors/ApiError";
 import pick from "../../shared/pick";
 import { eventFilterableFields } from "../admin/admin.constant";

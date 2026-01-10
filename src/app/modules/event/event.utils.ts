@@ -1,4 +1,4 @@
-import { Prisma, EventType } from "../../../generated/prisma/client";
+import { EventType, Prisma } from "../../../generated/prisma/client";
 
 export interface EventSearchParams {
   type?: string;

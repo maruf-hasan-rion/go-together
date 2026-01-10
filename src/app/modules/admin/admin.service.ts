@@ -1,6 +1,6 @@
 import { prisma } from "../../shared/prisma";
 import ApiError from "../../errors/ApiError";
-import { ApplicationStatus, UserRole } from "../../../generated/prisma/enums";
+import { ApplicationStatus, UserRole } from "../../../generated/prisma";
 import { IPaginationOptions } from "../../types/pagination";
 import { paginationHelper } from "../../helper/paginationHelper";
 import { Prisma } from "../../../generated/prisma/client";
