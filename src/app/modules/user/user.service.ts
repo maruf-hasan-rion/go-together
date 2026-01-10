@@ -1,9 +1,10 @@
 import { Request } from "express";
 import bcrypt from "bcryptjs";
 import { fileUploader } from "../../helper/fileUploader";
-import { prisma } from "../../shared/prisma";
+// import { prisma } from "../../shared/prisma";
 import { IJWTPayload } from "../../types/common";
 import ApiError from "../../errors/ApiError";
+import { prisma } from "../../shared/prisma";
 
 const createUser = async (req: Request) => {
   if (req.file) {
