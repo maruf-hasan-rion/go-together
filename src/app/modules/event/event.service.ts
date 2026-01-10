@@ -7,17 +7,17 @@ import { prisma } from "../../shared/prisma";
 
 import { jwtHelper } from "../../helper/jwtHelper";
 import config, { deleteImageFromCloudinary } from "../../../config";
-import {
-  Event,
-  EventStatus,
-  EventType,
-  Prisma,
-} from "../../../generated/prisma/client";
 import { IPaginationOptions } from "../../types/pagination";
 import { paginationHelper } from "../../helper/paginationHelper";
 import { eventSearchableFields } from "../admin/admin.constant";
 import ApiError from "../../errors/ApiError";
 import httpStatus from "http-status";
+import {
+  Event,
+  EventStatus,
+  EventType,
+  Prisma,
+} from "../../../generated/prisma";
 
 interface MyEventQuery {
   type?: "upcoming" | "past";
