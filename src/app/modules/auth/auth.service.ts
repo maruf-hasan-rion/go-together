@@ -184,11 +184,11 @@ const getMe = async (session: any) => {
 
 const applyHost = async (
   userId: string | undefined,
-  data: { message: string }
+  data: { message: string } | undefined
 ) => {
-  if (!userId) {
-    throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
-  }
+  if (!userId) throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
+  if (!data?.message)
+    throw new ApiError(httpStatus.BAD_REQUEST, "Message is required");
 
   const existing = await prisma.hostApplication.findUnique({
     where: { userId },
@@ -208,19 +208,11 @@ const applyHost = async (
   });
 
   if (user?.role === "HOST") {
-    return {
-      success: false,
-      message: "You are already a host",
-      data: null,
-    };
+    return { success: false, message: "You are already a host", data: null };
   }
 
   const application = await prisma.hostApplication.create({
-    data: {
-      userId,
-      message: data.message,
-      status: "PENDING",
-    },
+    data: { userId, message: data.message, status: "PENDING" },
   });
 
   return {

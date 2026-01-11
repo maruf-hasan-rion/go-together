@@ -66,6 +66,18 @@ const applyHost = catchAsync(
   async (req: Request & { user?: IJWTPayload }, res: Response) => {
     const userId = req.user?.id;
 
+    if (!req.body || !req.body.message) {
+      sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: "Message is required",
+        data: null,
+      });
+      console.log("BODY:", req.body);
+
+      return;
+    }
+
     const result = await AuthService.applyHost(userId, req.body);
 
     sendResponse(res, {
