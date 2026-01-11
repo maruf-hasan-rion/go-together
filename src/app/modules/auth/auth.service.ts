@@ -183,17 +183,13 @@ const getMe = async (session: any) => {
 //   const userData = await prisma.user.findUniqueOrThrow({
 
 const applyHost = async (
-  userId: any,
-  data: {
-    message: string;
-    // bio: string;
-    // experience?: string;
-    // eventTypes: string[];
-  }
+  userId: string | undefined,
+  data: { message: string }
 ) => {
   if (!userId) {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
   }
+
   const existing = await prisma.hostApplication.findUnique({
     where: { userId },
   });
@@ -202,17 +198,20 @@ const applyHost = async (
     return {
       success: false,
       message: `Application already ${existing.status.toLowerCase()}`,
+      data: existing,
     };
   }
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
+    select: { role: true },
   });
 
   if (user?.role === "HOST") {
     return {
       success: false,
       message: "You are already a host",
+      data: null,
     };
   }
 
@@ -220,15 +219,18 @@ const applyHost = async (
     data: {
       userId,
       message: data.message,
-      // bio: data.bio,
-      // experience: data.experience,
-      // eventTypes: data.eventTypes,
       status: "PENDING",
     },
   });
 
-  return { application };
+  return {
+    success: true,
+    message:
+      "Application submitted successfully. We will review within 24-48 hours.",
+    data: application,
+  };
 };
+
 export const AuthService = {
   login,
   refreshToken,

@@ -62,18 +62,17 @@ const getMe = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
 const applyHost = catchAsync(
   async (req: Request & { user?: IJWTPayload }, res: Response) => {
     const userId = req.user?.id;
+
     const result = await AuthService.applyHost(userId, req.body);
 
     sendResponse(res, {
-      statusCode: httpStatus.OK,
-      success: true,
-      message:
-        "Application submitted successfully. We will review within 24-48 hours.",
-      data: result,
+      statusCode: result.success ? httpStatus.OK : httpStatus.BAD_REQUEST,
+      success: result.success,
+      message: result.message,
+      data: result.data,
     });
   }
 );
