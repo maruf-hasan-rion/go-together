@@ -13,6 +13,5 @@ npm run build
 echo "Copying generated prisma client to dist..."
 rm -rf dist/generated
 mkdir -p dist/generated
-cp -R src/generated/prisma dist/generated/prisma
 
 echo "Build done."

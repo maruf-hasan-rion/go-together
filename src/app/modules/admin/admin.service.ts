@@ -1,6 +1,6 @@
 import { prisma } from "../../shared/prisma";
 import ApiError from "../../errors/ApiError";
-import { ApplicationStatus, Prisma, UserRole } from "../../../generated/prisma";
+import { ApplicationStatus, Prisma, UserRole } from "@prisma/client";
 import { IPaginationOptions } from "../../types/pagination";
 import { paginationHelper } from "../../helper/paginationHelper";
 import { userSearchableFields } from "./admin.constant";

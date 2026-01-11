@@ -12,12 +12,7 @@ import { paginationHelper } from "../../helper/paginationHelper";
 import { eventSearchableFields } from "../admin/admin.constant";
 import ApiError from "../../errors/ApiError";
 import httpStatus from "http-status";
-import {
-  Event,
-  EventStatus,
-  EventType,
-  Prisma,
-} from "../../../generated/prisma";
+import { Event, EventStatus, EventType, Prisma } from "@prisma/client";
 
 interface MyEventQuery {
   type?: "upcoming" | "past";
