@@ -1,5 +1,6 @@
 import express from "express";
 import auth from "../../middleware/auth.js";
+import { authLimiter } from "../../middleware/rateLimiter.js";
 import validateRequest from "../../middleware/validateRequest.js";
 import { UserRole } from "../user/user.interface.js";
 import { AuthController } from "./auth.controller.js";
@@ -7,9 +8,13 @@ import { AuthValidation } from "./auth.validation.js";
 
 const router = express.Router();
 
-router.post("/login", AuthController.login);
+router.post("/login", authLimiter, validateRequest(AuthValidation.login), AuthController.login);
 
-router.post("/refresh-token", AuthController.refreshToken);
+router.post(
+  "/refresh-token",
+  authLimiter,
+  AuthController.refreshToken,
+);
 
 router.post("/logout", AuthController.logout);
 
@@ -26,6 +31,11 @@ router.get(
   AuthController.getMe,
 );
 
-router.post("/apply-host", auth(UserRole.USER), AuthController.applyHost);
+router.post(
+  "/apply-host",
+  auth(UserRole.USER),
+  validateRequest(AuthValidation.applyHost),
+  AuthController.applyHost,
+);
 
 export const AuthRoutes = router;
