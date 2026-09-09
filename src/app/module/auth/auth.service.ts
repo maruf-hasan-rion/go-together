@@ -3,6 +3,7 @@ import httpStatus from "http-status";
 import type { JwtPayload, Secret } from "jsonwebtoken";
 import config from "../../../config/index.js";
 import { prisma } from "../../lib/prisma.js";
+import { userPublicSelect } from "../../serializers/user.js";
 import ApiError from "../../utils/ApiError.js";
 import { jwtHelper } from "../../utils/jwt.js";
 
@@ -73,9 +74,8 @@ const getMe = async (session: any) => {
     where: {
       email: decodedData.email,
     },
+    select: userPublicSelect,
   });
-
-  // const { id, email, role } = userData;
 
   return userData;
 };

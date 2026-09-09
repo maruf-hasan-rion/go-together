@@ -7,6 +7,7 @@ import {
   type Prisma,
 } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
+import { userPublicSelect } from "../../serializers/user.js";
 import type { IPaginationOptions } from "../../types/pagination.js";
 import ApiError from "../../utils/ApiError.js";
 import { paginationHelper } from "../../utils/pagination.js";
@@ -322,7 +323,7 @@ const getAllEvents = async (params: any, options: IPaginationOptions, user: any)
       options.sortBy && options.sortOrder
         ? { [options.sortBy]: options.sortOrder }
         : { createdAt: "desc" },
-    include: { host: true },
+    include: { host: { select: userPublicSelect } },
   });
 
   const total = await prisma.event.count({ where: whereConditions });
@@ -380,7 +381,7 @@ const getEventDetails = async (eventId: string) => {
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
-      host: true,
+      host: { select: userPublicSelect },
       // participants: {
       //   include: {
       //     client: true,

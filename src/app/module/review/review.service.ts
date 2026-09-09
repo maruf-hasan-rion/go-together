@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { userPublicSelect } from "../../serializers/user.js";
 import type { IJWTPayload } from "../../types/common.js";
 
 const addReview = async (user: IJWTPayload, payload: any) => {
@@ -34,9 +35,9 @@ const addReview = async (user: IJWTPayload, payload: any) => {
       eventId,
     },
     include: {
-      user: true,
-      host: true,
-      event: true,
+      user: { select: userPublicSelect },
+      host: { select: userPublicSelect },
+      event: { select: { id: true, title: true } },
     },
   });
 

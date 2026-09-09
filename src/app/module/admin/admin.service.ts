@@ -1,5 +1,6 @@
 import { ApplicationStatus, type Prisma, UserRole } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
+import { userPublicSelect } from "../../serializers/user.js";
 import type { IPaginationOptions } from "../../types/pagination.js";
 import ApiError from "../../utils/ApiError.js";
 import { paginationHelper } from "../../utils/pagination.js";
@@ -64,9 +65,7 @@ const getAllUsers = async (params: any, options: IPaginationOptions) => {
       options.sortBy && options.sortOrder
         ? { [options.sortBy]: options.sortOrder }
         : { createdAt: "desc" },
-    include: {
-      // user: true,
-    },
+    select: userPublicSelect,
   });
 
   const total = await prisma.user.count({ where: whereConditions });
