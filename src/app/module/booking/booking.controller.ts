@@ -40,12 +40,11 @@ const createBooking = catchAsync(async (req: Request & { user?: IJWTPayload }, r
   });
 });
 
-const getUserBookings = catchAsync(async (req: Request & { user?: any }, res: Response) => {
-  // const { status } = req.query;
-  const result = await BookingService.getUserBookings(
-    req.user.userId,
-    // status as any
-  );
+const getUserBookings = catchAsync(async (req: Request & { user?: IJWTPayload }, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
+
+  const result = await BookingService.getUserBookings(userId);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -54,9 +53,12 @@ const getUserBookings = catchAsync(async (req: Request & { user?: any }, res: Re
   });
 });
 
-const getBookingDetails = catchAsync(async (req: Request & { user?: any }, res: Response) => {
+const getBookingDetails = catchAsync(async (req: Request & { user?: IJWTPayload }, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
+
   const { bookingId } = req.params;
-  const result = await BookingService.getBookingDetails(bookingId, req.user.userId);
+  const result = await BookingService.getBookingDetails(bookingId, userId);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -65,9 +67,12 @@ const getBookingDetails = catchAsync(async (req: Request & { user?: any }, res: 
   });
 });
 
-const cancelBooking = catchAsync(async (req: Request & { user?: any }, res: Response) => {
+const cancelBooking = catchAsync(async (req: Request & { user?: IJWTPayload }, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
+
   const { bookingId } = req.params;
-  const result = await BookingService.cancelBooking(bookingId, req.user.userId);
+  const result = await BookingService.cancelBooking(bookingId, userId);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
