@@ -54,7 +54,7 @@ const stripe = new Stripe(config.stripe_secret_key || "", {
 });
 
 // Demo mode check
-const IS_DEMO_MODE = config.node_env === "development" || !config.stripe_secret_key;
+const isDemoMode = config.node_env === "development" && config.demo_mode;
 
 // payment.service.ts (শুধু createPaymentIntent ফাংশন)
 
@@ -79,7 +79,7 @@ const createPaymentIntent = async (bookingId: string, userId: string) => {
   if (existingPayment) {
     console.log("Returning existing payment:", existingPayment.transactionId);
 
-    if (IS_DEMO_MODE || existingPayment.transactionId?.startsWith("demo_pi_")) {
+    if (isDemoMode || existingPayment.transactionId?.startsWith("demo_pi_")) {
       return {
         clientSecret: `${existingPayment.transactionId}_secret_demo`,
         paymentIntentId: existingPayment.transactionId, // <-- এখানে null হতে পারে?
@@ -106,7 +106,7 @@ const createPaymentIntent = async (bookingId: string, userId: string) => {
   let paymentIntent: { id: string; client_secret: string | null };
   let transactionId: string;
 
-  if (IS_DEMO_MODE) {
+  if (isDemoMode) {
     transactionId = `demo_pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     paymentIntent = {
       id: transactionId,
@@ -125,16 +125,29 @@ const createPaymentIntent = async (bookingId: string, userId: string) => {
     transactionId = paymentIntent.id;
   }
 
-  // DB তে সেভ করো
-  await prisma.payment.create({
-    data: {
-      bookingId: booking.id,
-      amount: booking.totalAmount,
-      transactionId,
-      paymentMethod: IS_DEMO_MODE ? "demo" : "stripe",
-      status: "PENDING",
-    },
-  });
+  // Persist the payment row (one row per booking)
+  const paymentData = {
+    amount: booking.totalAmount,
+    transactionId,
+    paymentMethod: isDemoMode ? "demo" : "stripe",
+    status: "PENDING" as const,
+  };
+
+  if (existingPayment) {
+    // A previous intent died — refresh the single row instead of creating
+    // a duplicate (payments.bookingId is unique).
+    await prisma.payment.update({
+      where: { id: existingPayment.id },
+      data: paymentData,
+    });
+  } else {
+    await prisma.payment.create({
+      data: {
+        bookingId: booking.id,
+        ...paymentData,
+      },
+    });
+  }
 
   return {
     clientSecret: paymentIntent.client_secret!,
@@ -142,7 +155,7 @@ const createPaymentIntent = async (bookingId: string, userId: string) => {
   };
 };
 
-const confirmPayment = async (paymentIntentId: string) => {
+const confirmPayment = async (paymentIntentId: string, userId: string) => {
   if (!paymentIntentId) {
     throw new ApiError(400, "Payment Intent ID is required");
   }
@@ -157,44 +170,51 @@ const confirmPayment = async (paymentIntentId: string) => {
     throw new ApiError(404, "Payment not found");
   }
 
+  if (payment.booking.userId !== userId) {
+    throw new ApiError(403, "You do not own this payment");
+  }
+
   if (payment.status === "COMPLETED") {
     return { success: true, message: "Payment already confirmed" };
   }
 
-  let isPaymentSuccessful = false;
+  const isDemoPayment = paymentIntentId.startsWith("demo_pi_");
 
-  if (IS_DEMO_MODE || paymentIntentId.startsWith("demo_pi_")) {
-    // Demo mode: Auto-approve
-    isPaymentSuccessful = true;
+  if (isDemoMode && isDemoPayment) {
+    // Explicit dev-only demo flag — auto-approve.
     console.log("🎭 DEMO MODE: Auto-approving payment:", paymentIntentId);
   } else {
-    // Production: Verify with Stripe
+    // Production: the intent must exist on Stripe as succeeded AND match
+    // the amount we recorded — client claims are never trusted.
+    let paymentIntent: Stripe.PaymentIntent;
     try {
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      isPaymentSuccessful = paymentIntent.status === "succeeded";
+      paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     } catch (error) {
       console.error("Stripe verification error:", error);
       throw new ApiError(400, "Failed to verify payment with Stripe");
     }
+
+    if (paymentIntent.status !== "succeeded") {
+      throw new ApiError(400, "Payment is not completed on Stripe");
+    }
+    if (paymentIntent.amount !== Math.round(payment.amount * 100)) {
+      throw new ApiError(400, "Payment amount does not match the booking");
+    }
   }
 
-  if (isPaymentSuccessful) {
-    // Update payment and booking in transaction
-    await prisma.$transaction([
-      prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "COMPLETED" },
-      }),
-      prisma.booking.update({
-        where: { id: payment.bookingId },
-        data: { status: "CONFIRMED" },
-      }),
-    ]);
+  // Update payment and booking atomically
+  await prisma.$transaction([
+    prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "COMPLETED" },
+    }),
+    prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: { status: "CONFIRMED" },
+    }),
+  ]);
 
-    return { success: true, message: "Payment confirmed successfully" };
-  }
-
-  throw new ApiError(400, "Payment verification failed");
+  return { success: true, message: "Payment confirmed successfully" };
 };
 
 const getPaymentHistory = async (userId: string) => {
