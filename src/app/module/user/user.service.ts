@@ -1,9 +1,25 @@
 import bcrypt from "bcryptjs";
 import type { Request } from "express";
+import httpStatus from "http-status";
 import { prisma } from "../../lib/prisma.js";
-// import { prisma } from "../../lib/prisma.js";
 import type { IJWTPayload } from "../../types/common.js";
+import ApiError from "../../utils/ApiError.js";
 import { fileUploader } from "../../utils/fileUploader.js";
+
+const publicUserSelect = {
+  id: true,
+  fullName: true,
+  email: true,
+  role: true,
+  bio: true,
+  profilePhoto: true,
+  location: true,
+  interests: true,
+  averageRating: true,
+  totalReviews: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 const createUser = async (req: Request) => {
   if (req.file) {
@@ -20,6 +36,7 @@ const createUser = async (req: Request) => {
       password: hashPassword,
       profilePhoto: req.body.profilePhoto || null,
     },
+    select: publicUserSelect,
   });
   return result;
 };
@@ -49,46 +66,31 @@ const createUser = async (req: Request) => {
 // };
 
 const updateMyProfile = async (user: IJWTPayload, req: Request) => {
-  const userInfo = await prisma.user.findUniqueOrThrow({
-    where: {
-      email: user?.email,
-    },
-  });
-
   const file = req.file;
   if (file) {
     const uploadToCloudinary = await fileUploader.uploadToCloudinary(file);
     req.body.profilePhoto = uploadToCloudinary?.secure_url;
   }
 
-  let profileInfo: Awaited<ReturnType<typeof prisma.user.update>> | undefined;
+  // req.body arrives whitelisted by UserValidation.updateMyProfile; the
+  // destructure below is the second guard so role/email/password can
+  // never reach Prisma even if validation is bypassed.
+  const { fullName, bio, location, profilePhoto, interests } = req.body;
 
-  // console.log(userInfo);
-
-  if (userInfo) {
-    profileInfo = await prisma.user.update({
-      where: {
-        email: userInfo.email,
-      },
-      data: req.body,
-    });
-    // } else if (userInfo.role === UserRole.DOCTOR) {
-    //   profileInfo = await prisma.doctor.update({
-    //     where: {
-    //       email: userInfo.email,
-    //     },
-    //     data: req.body,
-    //   });
-    // } else if (userInfo.role === UserRole.PATIENT) {
-    // profileInfo = await prisma.patient.update({
-    //   where: {
-    //     email: userInfo.email,
-    //   },
-    //   data: req.body,
-    // });
+  const data = { fullName, bio, location, profilePhoto, interests };
+  if (Object.values(data).every((value) => value === undefined)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "No fields to update");
   }
 
-  return { ...profileInfo };
+  const profileInfo = await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data,
+    select: publicUserSelect,
+  });
+
+  return profileInfo;
 };
 
 export const UserService = {

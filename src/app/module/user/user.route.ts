@@ -23,7 +23,9 @@ router.patch(
   auth(UserRole.ADMIN, UserRole.HOST, UserRole.USER),
   fileUploader.upload.single("file"),
   (req: Request, res: Response, next: NextFunction) => {
-    req.body = JSON.parse(req.body.data);
+    // Only whitelisted fields survive the schema; role/email/password
+    // and unknown keys are stripped here.
+    req.body = UserValidation.updateMyProfile.parse(JSON.parse(req.body.data));
     return UserController.updateMyProfile(req, res, next);
   },
 );

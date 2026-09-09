@@ -1,32 +1,36 @@
-import z from "zod";
+import { z } from "zod";
 
 const createUser = z.object({
-  fullName: z.string().nonempty("Name is required"),
-  email: z.string().nonempty("Email is required"),
+  fullName: z.string().min(1, "Name is required"),
+  email: z.string().min(1, "Email is required").email("Invalid email"),
   password: z
     .string({ error: "Password is required!" })
     .min(6, "Password must be at least 6 characters long"),
   profilePhoto: z.string().optional(),
 });
 
-// const updateUser = z.object({
-//   fullName: z.string().optional(),
-
-//   bio: z.string().min(5, "Bio must be at least 5 characters").optional(),
-
-//   location: z
-//     .string()
-//     .min(2, "Location must be at least 2 characters")
-//     .optional(),
-
-//   profilePhoto: z.string().url("Invalid image URL").optional(),
-
-//   interests: z
-//     .array(z.string().min(2, "Interest must be at least 2 characters"))
-//     .optional(),
-// });
+/**
+ * Whitelist for profile updates — role, email, password and any other
+ * column can never be set through this endpoint.
+ */
+const updateMyProfile = z.object({
+  fullName: z.string().min(1, "Name is required").max(100).optional(),
+  bio: z.string().max(2000).optional(),
+  location: z.string().max(200).optional(),
+  profilePhoto: z.string().url("Invalid image URL").optional(),
+  interests: z
+    .union([z.string(), z.array(z.string())])
+    .transform((value) => {
+      const raw = Array.isArray(value) ? value : value.split(",");
+      return raw
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+        .slice(0, 20);
+    })
+    .optional(),
+});
 
 export const UserValidation = {
   createUser,
-  // updateUser,
+  updateMyProfile,
 };
