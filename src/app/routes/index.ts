@@ -1,12 +1,12 @@
 import express from "express";
-import { UserRoutes } from "../modules/user/user.routes";
-import { AuthRoutes } from "../modules/auth/auth.routes";
-import { EventRoutes } from "../modules/event/event.routes";
-import { ReviewRoutes } from "../modules/review/review.routes";
-import { AdminRoutes } from "../modules/admin/admin.routes";
-import { BookingRoutes } from "../modules/booking/booking.routes";
-import { MetaRoutes } from "../modules/Meta/meta.routes";
-import { PaymentRoutes } from "../modules/payment/payment.routes";
+import { AdminRoutes } from "../module/admin/admin.route.js";
+import { AuthRoutes } from "../module/auth/auth.route.js";
+import { BookingRoutes } from "../module/booking/booking.route.js";
+import { EventRoutes } from "../module/event/event.route.js";
+import { MetaRoutes } from "../module/meta/meta.route.js";
+import { PaymentRoutes } from "../module/payment/payment.route.js";
+import { ReviewRoutes } from "../module/review/review.route.js";
+import { UserRoutes } from "../module/user/user.route.js";
 
 const router = express.Router();
 
@@ -53,6 +53,8 @@ const moduleRoutes = [
   },
 ];
 
-moduleRoutes.forEach((route) => router.use(route.path, route.route));
+moduleRoutes.forEach((route) => {
+  router.use(route.path, route.route);
+});
 
 export default router;

@@ -1,11 +1,12 @@
-import express, { Application, NextFunction, Request, Response } from "express";
-import cors from "cors";
-import globalErrorHandler from "./app/middlewares/globalErrorHandler";
-import notFound from "./app/middlewares/notFound";
-import config from "./config";
-import router from "./app/routes";
 import cookieParser from "cookie-parser";
-// import { PaymentController } from "./app/modules/payment/payment.controller";
+import cors from "cors";
+import express, { type Application, type Request, type Response } from "express";
+import globalErrorHandler from "./app/middleware/globalErrorHandler.js";
+import notFound from "./app/middleware/notFound.js";
+import router from "./app/routes/index.js";
+import config from "./config/index.js";
+
+// import { PaymentController } from "./app/module/payment/payment.controller.js";
 
 const app: Application = express();
 
@@ -17,12 +18,9 @@ const app: Application = express();
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://go-together-frontend-ten.vercel.app",
-    ],
+    origin: ["http://localhost:3000", "https://go-together-frontend-ten.vercel.app"],
     credentials: true,
-  })
+  }),
 );
 
 //parser
@@ -32,11 +30,11 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/v1", router);
 
-app.get("/", (req: Request, res: Response) => {
+app.get("/", (_req: Request, res: Response) => {
   res.send({
     message: "Server is running..",
     environment: config.node_env,
-    uptime: process.uptime().toFixed(2) + " sec",
+    uptime: `${process.uptime().toFixed(2)} sec`,
     timeStamp: new Date().toISOString(),
   });
 });

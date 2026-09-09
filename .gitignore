@@ -1,9 +1,11 @@
 node_modules
 # Keep environment variables out of version control
 .github
+.commandcode/
 
 .env
 /generated/prisma
+/src/generated/prisma/
 .vercel
 dist/
 .env

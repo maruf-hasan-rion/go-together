@@ -1,4 +1,4 @@
-import { UserRole } from "../modules/user/user.interface";
+import type { UserRole } from "../module/user/user.interface.js";
 
 export type IJWTPayload = {
   id: string;

@@ -2,16 +2,12 @@
 set -e
 
 echo "Generating Prisma client..."
-npx prisma generate
+pnpm exec prisma generate
 
 echo "Applying migrations..."
-npx prisma migrate deploy
+pnpm exec prisma migrate deploy
 
 echo "Building TS..."
-npm run build
-
-echo "Copying generated prisma client to dist..."
-rm -rf dist/generated
-mkdir -p dist/generated
+pnpm run build
 
 echo "Build done."

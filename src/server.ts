@@ -1,6 +1,6 @@
-import { Server } from "http";
-import app from "./app";
-import config from "./config";
+import type { Server } from "node:http";
+import app from "./app.js";
+import config from "./config/index.js";
 
 async function bootstrap() {
   // This variable will hold our server instance
@@ -13,30 +13,27 @@ async function bootstrap() {
     });
 
     // Function to gracefully shut down the server
-    const exitHandler = () => {
+    const exitHandler = (code: number) => {
+      const shutdown = () => {
+        console.log("Server closed gracefully.");
+        process.exit(code);
+      };
       if (server) {
-        server.close(() => {
-          console.log("Server closed gracefully.");
-          process.exit(1); // Exit with a failure code
-        });
+        server.close(shutdown);
+        // Force-exit if open connections keep the server from closing
+        setTimeout(() => process.exit(code), 10_000).unref();
       } else {
-        process.exit(1);
+        process.exit(code);
       }
     };
 
+    process.on("SIGINT", () => exitHandler(0));
+    process.on("SIGTERM", () => exitHandler(0));
+
     // Handle unhandled promise rejections
     process.on("unhandledRejection", (error) => {
-      console.log(
-        "Unhandled Rejection is detected, we are closing our server..."
-      );
-      if (server) {
-        server.close(() => {
-          console.log(error);
-          process.exit(1);
-        });
-      } else {
-        process.exit(1);
-      }
+      console.log("Unhandled Rejection is detected, we are closing our server...", error);
+      exitHandler(1);
     });
   } catch (error) {
     console.error("Error during server startup:", error);
