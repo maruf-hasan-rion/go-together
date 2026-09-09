@@ -40,20 +40,77 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
     sameSite: "none",
     maxAge: 1000 * 60 * 60,
   });
+  res.cookie("refreshToken", result.refreshToken, {
+    secure: true,
+    httpOnly: true,
+    sameSite: "none",
+    maxAge: 1000 * 60 * 60 * 24 * 90,
+  });
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: "Access token genereated successfully!",
-    data: {
-      message: "Access token genereated successfully!",
-    },
+    message: "Access token generated successfully!",
+    data: result,
   });
 });
 
-const getMe = catchAsync(async (req: Request, res: Response) => {
-  const userSession = req.cookies;
-  const result = await AuthService.getMe(userSession);
+const logout = catchAsync(async (req: Request, res: Response) => {
+  const { refreshToken } = req.cookies;
+  await AuthService.logout(refreshToken);
+
+  res.clearCookie("accessToken", { secure: true, httpOnly: true, sameSite: "none" });
+  res.clearCookie("refreshToken", { secure: true, httpOnly: true, sameSite: "none" });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Logged out successfully!",
+    data: null,
+  });
+});
+
+const changePassword = catchAsync(
+  async (req: Request & { user?: IJWTPayload }, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      sendResponse(res, {
+        statusCode: httpStatus.UNAUTHORIZED,
+        success: false,
+        message: "Unauthorized",
+        data: null,
+      });
+      return;
+    }
+
+    await AuthService.changePassword(userId, req.body);
+
+    // All sessions were revoked; clear tokens so the client re-logs in.
+    res.clearCookie("accessToken", { secure: true, httpOnly: true, sameSite: "none" });
+    res.clearCookie("refreshToken", { secure: true, httpOnly: true, sameSite: "none" });
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Password changed successfully. Please log in again.",
+      data: null,
+    });
+  },
+);
+
+const getMe = catchAsync(async (req: Request & { user?: IJWTPayload }, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: "Unauthorized",
+      data: null,
+    });
+    return;
+  }
+
+  const result = await AuthService.getMeById(userId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -90,6 +147,8 @@ const applyHost = catchAsync(async (req: Request & { user?: IJWTPayload }, res: 
 export const AuthController = {
   login,
   refreshToken,
+  logout,
+  changePassword,
   getMe,
   applyHost,
 };

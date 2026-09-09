@@ -1,35 +1,84 @@
 import bcrypt from "bcryptjs";
+import { createHash, randomUUID } from "node:crypto";
 import httpStatus from "http-status";
 import type { JwtPayload, Secret } from "jsonwebtoken";
 import config from "../../../config/index.js";
+import { UserStatus } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { userPublicSelect } from "../../serializers/user.js";
 import ApiError from "../../utils/ApiError.js";
 import { jwtHelper } from "../../utils/jwt.js";
 
-const login = async (payload: { email: string; password: string }) => {
-  const user = await prisma.user.findUniqueOrThrow({
-    where: {
-      email: payload.email,
+const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
+
+const refreshTtlDays = (expiresIn: string) => {
+  const match = /^(\d+)\s*d/i.exec(expiresIn);
+  return match ? Number(match[1]) : 90;
+};
+
+/**
+ * Creates a Session row and returns the signed refresh token for it.
+ * The token carries jti = session id; the row stores only the token hash,
+ * so a stolen database cannot be used to forge refresh tokens.
+ */
+const issueRefreshSession = async (user: { id: string; email: string; role: string }) => {
+  const sessionId = randomUUID();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + refreshTtlDays(config.jwt.refresh_token_expires_in));
+
+  const token = jwtHelper.generateToken(
+    { id: user.id, email: user.email, role: user.role, jti: sessionId },
+    config.jwt.refresh_token_secret as Secret,
+    config.jwt.refresh_token_expires_in,
+  );
+
+  await prisma.session.create({
+    data: {
+      id: sessionId,
+      userId: user.id,
+      refreshTokenHash: sha256(token),
+      expiresAt,
     },
   });
 
+  return token;
+};
+
+const login = async (payload: { email: string; password: string }) => {
+  const user = await prisma.user.findUnique({
+    where: { email: payload.email },
+    select: {
+      id: true,
+      email: true,
+      password: true,
+      role: true,
+      status: true,
+      deletedAt: true,
+    },
+  });
+
+  if (!user) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid email or password!");
+  }
+  if (user.status !== UserStatus.ACTIVE || user.deletedAt) {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "Your account is not active. Contact support.",
+    );
+  }
+
   const isCorrectPassword = await bcrypt.compare(payload.password, user.password);
   if (!isCorrectPassword) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Password is incorrect!");
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid email or password!");
   }
 
   const accessToken = jwtHelper.generateToken(
     { id: user.id, email: user.email, role: user.role },
     config.jwt.jwt_secret as Secret,
-    config.jwt.jwt_secret_expires_in as string,
+    config.jwt.jwt_secret_expires_in,
   );
 
-  const refreshToken = jwtHelper.generateToken(
-    { id: user.id, email: user.email, role: user.role },
-    config.jwt.refresh_token_secret as Secret,
-    config.jwt.refresh_token_expires_in as string,
-  );
+  const refreshToken = await issueRefreshSession(user);
 
   return {
     accessToken,
@@ -38,140 +87,120 @@ const login = async (payload: { email: string; password: string }) => {
 };
 
 const refreshToken = async (token: string) => {
-  let decodedData: JwtPayload;
-  try {
-    decodedData = jwtHelper.verifyToken(token, config.jwt.refresh_token_secret as Secret);
-  } catch (_err) {
-    throw new Error("You are not authorized!");
+  if (!token) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "You are not authorized!");
   }
 
-  const userData = await prisma.user.findUniqueOrThrow({
-    where: {
-      email: decodedData.email,
-    },
+  let decoded: JwtPayload;
+  try {
+    decoded = jwtHelper.verifyToken(token, config.jwt.refresh_token_secret as Secret);
+  } catch (_err) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "You are not authorized!");
+  }
+
+  const sessionId = decoded.jti;
+  if (!sessionId) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "You are not authorized!");
+  }
+
+  const session = await prisma.session.findUnique({ where: { id: sessionId } });
+
+  if (
+    !session ||
+    session.revokedAt ||
+    session.expiresAt <= new Date() ||
+    session.refreshTokenHash !== sha256(token)
+  ) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "You are not authorized!");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { id: true, email: true, role: true, status: true, deletedAt: true },
+  });
+
+  if (!user || user.status !== UserStatus.ACTIVE || user.deletedAt) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "You are not authorized!");
+  }
+
+  // Rotate: revoke the presented session and issue a fresh one
+  await prisma.session.update({
+    where: { id: session.id },
+    data: { revokedAt: new Date() },
   });
 
   const accessToken = jwtHelper.generateToken(
-    {
-      id: userData.id,
-      email: userData.email,
-      role: userData.role,
-    },
+    { id: user.id, email: user.email, role: user.role },
     config.jwt.jwt_secret as Secret,
-    config.jwt.jwt_secret_expires_in as string,
+    config.jwt.jwt_secret_expires_in,
   );
+  const newRefreshToken = await issueRefreshSession(user);
 
   return {
     accessToken,
+    refreshToken: newRefreshToken,
   };
 };
 
-const getMe = async (session: any) => {
-  const accessToken = session.accessToken;
-  const decodedData = jwtHelper.verifyToken(accessToken, config.jwt.jwt_secret as Secret);
+const logout = async (refreshToken: string) => {
+  if (!refreshToken) return;
 
-  const userData = await prisma.user.findUniqueOrThrow({
-    where: {
-      email: decodedData.email,
-    },
+  let decoded: JwtPayload;
+  try {
+    decoded = jwtHelper.verifyToken(refreshToken, config.jwt.refresh_token_secret as Secret);
+  } catch (_err) {
+    return; // already invalid — nothing to revoke
+  }
+
+  if (decoded.jti) {
+    await prisma.session.updateMany({
+      where: { id: decoded.jti, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+};
+
+const changePassword = async (
+  userId: string,
+  payload: { oldPassword: string; newPassword: string },
+) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { password: true },
+  });
+
+  if (!user) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "You are not authorized!");
+  }
+
+  const isCorrectPassword = await bcrypt.compare(payload.oldPassword, user.password);
+  if (!isCorrectPassword) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Old password is incorrect!");
+  }
+
+  const hashedPassword = await bcrypt.hash(payload.newPassword, config.salt_round);
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    }),
+    // Revoke every session so the user signs in again with the new password
+    prisma.session.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+};
+
+const getMeById = async (userId: string) => {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
     select: userPublicSelect,
   });
 
-  return userData;
+  return user;
 };
-
-// const applyHost = async (user: any) => {
-//   const accessToken = user.accessToken;
-
-//   const decodedData = jwtHelper.verifyToken(
-//     accessToken,
-//     config.jwt.jwt_secret as Secret
-//   );
-//   const userData = await prisma.user.findUniqueOrThrow({
-//     where: {
-//       id: decodedData.userId,
-//     },
-//     include: {
-//       client: true,
-//     },
-//   });
-
-//   if (!userData) {
-//     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
-//   }
-
-//   if (userData.status === UserStatus.SUSPENDED) {
-//     throw new ApiError(
-//       httpStatus.FORBIDDEN,
-//       "Your account has been suspended. You cannot perform this operation."
-//     );
-//   }
-
-//   if (!userData.client) {
-//     throw new ApiError(httpStatus.BAD_REQUEST, "Client profile not found");
-//   }
-
-//   const existingApplication = await prisma.hostApplication.findFirst({
-//     where: {
-//       userId: userData.id,
-//       status: HostApplicationStatus.PENDING,
-//     },
-//   });
-//   if (existingApplication) {
-//     throw new ApiError(
-//       httpStatus.BAD_REQUEST,
-//       "You have already applied to be a host. Please wait for approval."
-//     );
-//   }
-
-//   const result = await prisma.$transaction(async (transactionClient) => {
-//     const application = await transactionClient.hostApplication.create({
-//       data: {
-//         userId: userData.id,
-//         name: userData.client!.name,
-//         email: userData.client!.email,
-//       },
-//     });
-
-//     const userUpdate = await transactionClient.user.update({
-//       where: {
-//         id: userData.id,
-//       },
-//       data: {
-//         status: UserStatus.PENDING,
-//       },
-//     });
-
-//     const clientData = await transactionClient.client.findFirst({
-//       where: {
-//         email: userData.email,
-//       },
-//     });
-
-//     await sendEmail({
-//       to: userData.email,
-//       subject: "Your Host Application Submitted",
-//       templateName: "host-application-submitted",
-//       templateData: {
-//         name: clientData ? clientData.name : userData.email.split("@")[0],
-//         applicationId: application.id,
-//       },
-//     });
-
-//     return { ...application, ...userUpdate };
-//   });
-
-//   return result;
-// };
-
-// const applyHost = async (user: any) => {
-//   const accessToken = user.accessToken;
-
-//   const decodedData = jwtHelper.verifyToken(
-//     accessToken,
-//     config.jwt.jwt_secret as Secret
-//   );
-//   const userData = await prisma.user.findUniqueOrThrow({
 
 const applyHost = async (userId: string | undefined, data: { message: string } | undefined) => {
   if (!userId) throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
@@ -212,6 +241,8 @@ const applyHost = async (userId: string | undefined, data: { message: string } |
 export const AuthService = {
   login,
   refreshToken,
-  getMe,
+  logout,
+  changePassword,
+  getMeById,
   applyHost,
 };

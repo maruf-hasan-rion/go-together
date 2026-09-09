@@ -1,0 +1,15 @@
+model Session {
+    id               String   @id @default(uuid())
+    userId           String
+    user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    refreshTokenHash String
+    userAgent        String?
+    ip               String?
+    expiresAt        DateTime
+    revokedAt        DateTime?
+    createdAt        DateTime @default(now())
+
+    @@index([userId])
+    @@index([expiresAt])
+    @@map("sessions")
+}

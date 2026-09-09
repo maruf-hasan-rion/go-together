@@ -4,6 +4,11 @@ enum UserRole {
     ADMIN
 }
 
+enum UserStatus {
+    ACTIVE
+    BLOCKED
+}
+
 enum ApplicationStatus {
     PENDING
     APPROVED

@@ -4,6 +4,12 @@ model User {
     password String
     fullName String
     role     UserRole @default(USER)
+    status   UserStatus @default(ACTIVE)
+
+    // soft delete support: deletedEmail keeps the unique email constraint
+    // working by parking the original address when an account is deleted
+    deletedAt     DateTime?
+    deletedEmail  String?
 
     bio              String?          @db.Text
     profilePhoto     String?
@@ -21,10 +27,12 @@ model User {
     bookings        Booking[]
     reviewsGiven    Review[]  @relation("ReviewsGiven")
     reviewsReceived Review[]  @relation("ReviewsReceived")
+    sessions        Session[]
     // payments      Payment[]
 
     // @@index([email])
     @@index([role])
+    @@index([status])
     @@map("users")
 }
 

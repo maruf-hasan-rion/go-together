@@ -1,7 +1,9 @@
 import express from "express";
 import auth from "../../middleware/auth.js";
+import validateRequest from "../../middleware/validateRequest.js";
 import { UserRole } from "../user/user.interface.js";
 import { AuthController } from "./auth.controller.js";
+import { AuthValidation } from "./auth.validation.js";
 
 const router = express.Router();
 
@@ -9,7 +11,20 @@ router.post("/login", AuthController.login);
 
 router.post("/refresh-token", AuthController.refreshToken);
 
-router.get("/me", AuthController.getMe);
+router.post("/logout", AuthController.logout);
+
+router.post(
+  "/change-password",
+  auth(UserRole.USER, UserRole.HOST, UserRole.ADMIN),
+  validateRequest(AuthValidation.changePassword),
+  AuthController.changePassword,
+);
+
+router.get(
+  "/me",
+  auth(UserRole.USER, UserRole.HOST, UserRole.ADMIN),
+  AuthController.getMe,
+);
 
 router.post("/apply-host", auth(UserRole.USER), AuthController.applyHost);
 
