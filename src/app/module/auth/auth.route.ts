@@ -11,6 +11,27 @@ const router = express.Router();
 router.post("/login", authLimiter, validateRequest(AuthValidation.login), AuthController.login);
 
 router.post(
+  "/google",
+  authLimiter,
+  validateRequest(AuthValidation.googleLogin),
+  AuthController.googleLogin,
+);
+
+router.post(
+  "/forgot-password",
+  authLimiter,
+  validateRequest(AuthValidation.forgotPassword),
+  AuthController.forgotPassword,
+);
+
+router.post(
+  "/reset-password",
+  authLimiter,
+  validateRequest(AuthValidation.resetPassword),
+  AuthController.resetPassword,
+);
+
+router.post(
   "/refresh-token",
   authLimiter,
   AuthController.refreshToken,

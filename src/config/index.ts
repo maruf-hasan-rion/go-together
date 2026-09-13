@@ -38,6 +38,23 @@ const envSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((v) => v === "true"),
+
+  // Frontend base URL used in transactional email links
+  FRONTEND_URL: z.string().default("http://localhost:3000"),
+
+  // Password reset tokens are stored in Redis (falls back to in-memory in dev)
+  RESET_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(10),
+  REDIS_URL: z.string().default(""),
+
+  // Google (GCP) sign-in
+  GOOGLE_CLIENT_ID: z.string().default(""),
+
+  // Transactional email (optional — links are logged when unset)
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASS: z.string().default(""),
+  SMTP_FROM: z.string().default("Go Together <no-reply@go-together.local>"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -79,6 +96,18 @@ export default {
   cors_origins: env.CORS_ORIGINS.split(",").map((origin) => origin.trim()),
   cookie_secret: env.COOKIE_SECRET,
   demo_mode: env.DEMO_MODE,
+
+  frontend_url: env.FRONTEND_URL,
+  reset_token_ttl_minutes: env.RESET_TOKEN_TTL_MINUTES,
+  redis_url: env.REDIS_URL,
+  google_client_id: env.GOOGLE_CLIENT_ID,
+  smtp: {
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    user: env.SMTP_USER,
+    pass: env.SMTP_PASS,
+    from: env.SMTP_FROM,
+  },
 };
 
 type CloudinaryUploadResultLike = {

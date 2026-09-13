@@ -1,6 +1,7 @@
 import express, { type NextFunction, type Request, type Response } from "express";
 import auth from "../../middleware/auth.js";
 import { fileUploader } from "../../utils/fileUploader.js";
+import { parseMultipartJson } from "../../utils/multipartJson.js";
 import { UserRole } from "../user/user.interface.js";
 import { EventController } from "./event.controller.js";
 import { EventValidation } from "./event.validation.js";
@@ -9,6 +10,14 @@ const router = express.Router();
 
 // Public routes
 router.get("/", EventController.getAllEvents);
+
+// Static path must be declared before the parameterized one
+router.get(
+  "/my-hosted-events",
+  auth(UserRole.HOST, UserRole.ADMIN),
+  EventController.getMyHostedEvents,
+);
+
 router.get("/:eventId", EventController.getEventDetails);
 // router.get("/featured", EventController.getFeaturedEvents);
 
@@ -18,7 +27,7 @@ router.post(
   auth(UserRole.HOST, UserRole.ADMIN),
   fileUploader.upload.single("file"),
   (req: Request, res: Response, next: NextFunction) => {
-    req.body = EventValidation.createEvent.parse(JSON.parse(req.body.data));
+    req.body = EventValidation.createEvent.parse(parseMultipartJson(req));
     return EventController.createEvent(req, res, next);
   },
 );
@@ -34,21 +43,18 @@ router.patch(
   auth(UserRole.HOST, UserRole.ADMIN),
   fileUploader.upload.single("file"),
   (req: Request, res: Response, next: NextFunction) => {
-    // ✅ Make sure "data" exists
-    const raw = req.body?.data;
-    const parsed = typeof raw === "string" ? JSON.parse(raw) : (raw ?? {});
+    const parsed = parseMultipartJson(req);
 
-    // ✅ Handle both keys (some clients send date, some send eventDate)
+    // Handle both keys (some clients send date, some send eventDate)
     const dt = parsed.eventDate ?? parsed.date;
 
-    // ✅ Convert datetime-local -> ISO (with Z) for Zod datetime()
+    // Convert datetime-local -> ISO (with Z) for the datetime validator
     if (typeof dt === "string" && dt) {
-      // If already ISO with Z, keep it
-      const iso = dt.endsWith("Z") ? dt : new Date(dt).toISOString();
-      parsed.eventDate = iso; // normalize to eventDate
-      delete parsed.date; // optional: prevent confusion
+      parsed.eventDate = dt.endsWith("Z") ? dt : new Date(dt).toISOString();
+      delete parsed.date;
     }
 
+    req.body = parsed;
     return EventController.updateEvent(req, res, next);
   },
 );
@@ -58,11 +64,6 @@ router.patch(
  */
 router.delete("/:eventId", auth(UserRole.HOST, UserRole.ADMIN), EventController.deleteEvent);
 
-router.get(
-  "/my-hosted-events",
-  auth(UserRole.HOST, UserRole.ADMIN),
-  EventController.getMyHostedEvents,
-);
 // router.get(
 //   "/host/my-events",
 //   auth(UserRole.HOST, UserRole.ADMIN),

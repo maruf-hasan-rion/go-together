@@ -12,10 +12,17 @@ export const authLimiter = rateLimit({
   },
 });
 
-/** Coarse global guard for the whole API. */
+/**
+ * Coarse abuse guard for the whole API.
+ *
+ * NOTE: the Next.js frontend calls this API server-to-server, so all of
+ * its users share one source IP. The limit therefore has to be generous;
+ * per-user protection belongs to the route-level limiters (authLimiter)
+ * and the auth middleware.
+ */
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 600,
+  limit: 5000,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: {

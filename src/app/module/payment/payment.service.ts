@@ -1,6 +1,7 @@
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import config from "../../../config/index.js";
 import { prisma } from "../../lib/prisma.js";
+import { stripe } from "../../lib/stripe.js";
 import ApiError from "../../utils/ApiError.js";
 
 // const handleStripeWebhookEvent = async (event: Stripe.Event) => {
@@ -49,11 +50,6 @@ import ApiError from "../../utils/ApiError.js";
 //   }
 // };
 
-const stripe = new Stripe(config.stripe_secret_key || "", {
-  // apiVersion: "2025-11-17.clover",
-});
-
-// Demo mode check
 const isDemoMode = config.node_env === "development" && config.demo_mode;
 
 // payment.service.ts (শুধু createPaymentIntent ফাংশন)

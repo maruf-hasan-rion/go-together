@@ -6,6 +6,9 @@ model User {
     role     UserRole @default(USER)
     status   UserStatus @default(ACTIVE)
 
+    // Google (GCP) sign-in linkage
+    googleId String? @unique
+
     // soft delete support: deletedEmail keeps the unique email constraint
     // working by parking the original address when an account is deleted
     deletedAt     DateTime?

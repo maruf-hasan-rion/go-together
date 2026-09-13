@@ -144,11 +144,60 @@ const applyHost = catchAsync(async (req: Request & { user?: IJWTPayload }, res: 
   });
 });
 
+const forgotPassword = catchAsync(async (req: Request, res: Response) => {
+  await AuthService.forgotPassword(req.body.email);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "If the account exists, a password reset link has been sent.",
+    data: null,
+  });
+});
+
+const resetPassword = catchAsync(async (req: Request, res: Response) => {
+  await AuthService.resetPassword(req.body.token, req.body.newPassword);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Password reset successfully. Please log in.",
+    data: null,
+  });
+});
+
+const googleLogin = catchAsync(async (req: Request, res: Response) => {
+  const result = await AuthService.googleLogin(req.body.idToken);
+
+  res.cookie("accessToken", result.accessToken, {
+    secure: true,
+    httpOnly: true,
+    sameSite: "none",
+    maxAge: 1000 * 60 * 60,
+  });
+  res.cookie("refreshToken", result.refreshToken, {
+    secure: true,
+    httpOnly: true,
+    sameSite: "none",
+    maxAge: 1000 * 60 * 60 * 24 * 90,
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Logged in with Google successfully!",
+    data: result,
+  });
+});
+
 export const AuthController = {
   login,
+  googleLogin,
   refreshToken,
   logout,
   changePassword,
+  forgotPassword,
+  resetPassword,
   getMe,
   applyHost,
 };

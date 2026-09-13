@@ -62,7 +62,7 @@ const globalErrorHandler = (err: any, _req: Request, res: Response, _next: NextF
   res.status(statusCode).json({
     success: false,
     message,
-    errors,
+    errors: errors ?? [],
     ...(isProduction ? {} : { error }),
   });
 };

@@ -23,7 +23,9 @@ app.use(
   }),
 );
 
-// Signed cookies (req.cookies still reads them; unsigned access is rejected)
+// Cookie secret enables signed-cookie parsing. The auth cookies are
+// intentionally unsigned: they are JWTs verified on every request, and the
+// frontend proxy re-issues them verbatim.
 app.use(cookieParser(config.cookie_secret));
 
 app.use(express.json({ limit: "1mb" }));
