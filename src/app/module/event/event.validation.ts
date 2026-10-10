@@ -78,21 +78,28 @@ const createEvent = z.object({
     error: "Description is required!",
   }),
 
-  eventDate: z.coerce.date({
-    error: "Valid event date is required!",
-  }),
+  eventDate: z.coerce
+    .date({
+      error: "Valid event date is required!",
+    })
+    .refine((d) => d.getTime() > Date.now(), "Event date must be in the future!"),
 
   location: z.string({
     error: "Location is required!",
   }),
 
-  joiningFee: z.number({
-    error: "Joining fee is required!",
-  }),
+  joiningFee: z
+    .number({
+      error: "Joining fee is required!",
+    })
+    .min(0, "Joining fee cannot be negative!"),
 
-  maxParticipants: z.number({
-    error: "Event capacity is required!",
-  }),
+  maxParticipants: z
+    .number({
+      error: "Event capacity is required!",
+    })
+    .int("Capacity must be a whole number!")
+    .min(1, "Capacity must be at least 1!"),
 });
 // const createEvent = z.object({
 //   title: z.string({ message: "Title is required!" }),
@@ -122,7 +129,16 @@ const createEvent = z.object({
 //     .optional()
 //     .transform((v) => (v ? Number(v) : 0)),
 // });
-const EventStatus = z.enum(["OPEN", "FULL", "CANCELLED", "COMPLETED"]);
+const updateEvent = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  type: z.array(EventType).min(1).optional(),
+  eventDate: z.coerce.date().optional(),
+  location: z.string().min(1).optional(),
+  minParticipants: z.coerce.number().int().min(1).optional(),
+  maxParticipants: z.coerce.number().int().min(1).optional(),
+  joiningFee: z.coerce.number().min(0).optional(),
+});
 // const updateEvent = z.object({
 //   title: z.string().optional(),
 //   type: z
@@ -143,18 +159,6 @@ const EventStatus = z.enum(["OPEN", "FULL", "CANCELLED", "COMPLETED"]);
 //   image: z.string().optional(),
 //   maxParticipants: z.number().optional(),
 // });
-const updateEvent = z.object({
-  title: z.string().min(1).optional(),
-  description: z.string().min(1).optional(),
-  type: z.array(z.string()).min(1).optional(), // must be array when provided
-  eventDate: z.iso.datetime().optional(), // frontend sends datetime-local -> make ISO before sending OR accept string and convert later
-  location: z.string().min(1).optional(),
-  minParticipants: z.coerce.number().int().min(1).optional(),
-  maxParticipants: z.coerce.number().int().min(1).optional(),
-  joiningFee: z.coerce.number().min(0).optional(),
-  status: EventStatus.optional(),
-});
-
 export const EventValidation = {
   createEvent,
   updateEvent,

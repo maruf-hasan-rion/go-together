@@ -10,12 +10,20 @@ const router = express.Router();
 
 // Public routes
 router.get("/", EventController.getAllEvents);
+router.get("/recent-events", EventController.getRecentEvents);
 
-// Static path must be declared before the parameterized one
+// Static paths must be declared before the parameterized one
+router.get("/my-events", auth(), EventController.getMyEvents);
 router.get(
   "/my-hosted-events",
   auth(UserRole.HOST, UserRole.ADMIN),
   EventController.getMyHostedEvents,
+);
+
+router.get(
+  "/:eventId/participants",
+  auth(UserRole.HOST, UserRole.ADMIN),
+  EventController.getEventParticipants,
 );
 
 router.get("/:eventId", EventController.getEventDetails);
@@ -54,9 +62,18 @@ router.patch(
       delete parsed.date;
     }
 
-    req.body = parsed;
+    req.body = EventValidation.updateEvent.parse(parsed);
     return EventController.updateEvent(req, res, next);
   },
+);
+
+/**
+ * COMPLETE EVENT
+ */
+router.patch(
+  "/:eventId/complete",
+  auth(UserRole.HOST, UserRole.ADMIN),
+  EventController.completeEvent,
 );
 
 /**

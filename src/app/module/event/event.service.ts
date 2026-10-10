@@ -10,6 +10,7 @@ import { prisma } from "../../lib/prisma.js";
 import { userPublicSelect } from "../../serializers/user.js";
 import type { IPaginationOptions } from "../../types/pagination.js";
 import ApiError from "../../utils/ApiError.js";
+import { fileUploader } from "../../utils/fileUploader.js";
 import { paginationHelper } from "../../utils/pagination.js";
 import { eventSearchableFields } from "../admin/admin.constant.js";
 import type { UserRole } from "../user/user.interface.js";
@@ -87,8 +88,10 @@ const createEvent = async (userId: string, payload: any, imageUrl?: string): Pro
     },
   });
 
-  if (!userData?.hostApplications) {
-    throw new ApiError(httpStatus.FORBIDDEN, "Only hosts can create events");
+  if (userData.role !== "ADMIN") {
+    if (!userData.hostApplications || userData.hostApplications.status !== "APPROVED") {
+      throw new ApiError(httpStatus.FORBIDDEN, "Only approved hosts can create events");
+    }
   }
 
   // if (userData.status === "SUSPENDED")
@@ -99,7 +102,15 @@ const createEvent = async (userId: string, payload: any, imageUrl?: string): Pro
   try {
     const createdEvent = await prisma.event.create({
       data: {
-        ...payload,
+        title: payload.title,
+        type: payload.type,
+        description: payload.description,
+        eventDate: new Date(payload.eventDate),
+        location: payload.location,
+        joiningFee: Number(payload.joiningFee),
+        maxParticipants: Number(payload.maxParticipants),
+        minParticipants:
+          payload.minParticipants !== undefined ? Number(payload.minParticipants) : undefined,
         image: imageUrl || null,
         hostId: userId,
       },
@@ -125,49 +136,64 @@ export const updateEvent = async (
     where: { id: eventId },
   });
 
-  if (!existing) {
-    throw new Error("Event not found");
+  if (!existing || existing.deletedAt) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Event not found");
   }
 
-  // ✅ host can only edit own event, admin can edit any
+  // host can only edit own event, admin can edit any
   if (role !== "ADMIN" && existing.hostId !== userId) {
-    throw new Error("You are not allowed to update this event");
+    throw new ApiError(httpStatus.FORBIDDEN, "You are not allowed to update this event");
   }
 
-  // ✅ build update object (only fields provided)
+  if (existing.status === EventStatus.COMPLETED) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Completed events cannot be edited");
+  }
+
+  // build update object (only fields provided)
   const updateData: any = {};
 
   if (payload.title !== undefined) updateData.title = payload.title;
   if (payload.description !== undefined) updateData.description = payload.description;
 
   if (payload.type !== undefined) {
-    // type must be array and non-empty (validation already ensures)
     updateData.type = payload.type;
   }
 
   if (payload.location !== undefined) updateData.location = payload.location;
 
   if (payload.eventDate !== undefined) {
-    // eventDate should be ISO string -> convert to Date
     updateData.eventDate = new Date(payload.eventDate);
   }
 
   if (payload.minParticipants !== undefined)
     updateData.minParticipants = Number(payload.minParticipants);
-  if (payload.maxParticipants !== undefined)
-    updateData.maxParticipants = Number(payload.maxParticipants);
   if (payload.joiningFee !== undefined) updateData.joiningFee = Number(payload.joiningFee);
-  if (payload.status !== undefined) updateData.status = payload.status;
 
-  // ✅ optional image update
-  if (file) {
-    // store file url/path based on your upload system
-    // example: file.path or cloud url
-    updateData.image = `/uploads/${file.filename}`;
+  if (payload.maxParticipants !== undefined) {
+    const nextMax = Number(payload.maxParticipants);
+    const activeBookings = await prisma.booking.count({
+      where: { eventId, status: { in: ["PENDING", "CONFIRMED"] } },
+    });
+
+    if (nextMax < activeBookings) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `Capacity cannot be lower than the ${activeBookings} active booking(s)`,
+      );
+    }
+
+    updateData.maxParticipants = nextMax;
+
+    if (activeBookings >= nextMax) updateData.status = EventStatus.FULL;
+    else if (existing.status === EventStatus.FULL) updateData.status = EventStatus.OPEN;
   }
 
-  // ✅ if maxParticipants changed, you may also want to enforce FULL/OPEN
-  // optional: keep your logic here if needed
+  // optional image update -> Cloudinary (never store a local /uploads path)
+  if (file) {
+    const uploadResult = await fileUploader.uploadToCloudinary(file);
+    updateData.image = uploadResult.secure_url;
+    if (existing.image) await deleteImageFromCloudinary(existing.image);
+  }
 
   const updated = await prisma.event.update({
     where: { id: eventId },
@@ -182,16 +208,30 @@ const deleteEvent = async (eventId: string, userId: string, role: UserRole) => {
     where: { id: eventId },
   });
 
-  if (!existing) {
-    throw new Error("Event not found");
+  if (!existing || existing.deletedAt) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Event not found");
   }
 
   if (role !== "ADMIN" && existing.hostId !== userId) {
-    throw new Error("You are not allowed to delete this event");
+    throw new ApiError(httpStatus.FORBIDDEN, "You are not allowed to delete this event");
   }
 
-  // Prisma will cascade bookings due to relation onDelete: Cascade
-  await prisma.event.delete({ where: { id: eventId } });
+  // Refuse to delete an event that already has paid attendees.
+  const confirmedBookings = await prisma.booking.count({
+    where: { eventId, status: "CONFIRMED" },
+  });
+  if (confirmedBookings > 0) {
+    throw new ApiError(
+      httpStatus.CONFLICT,
+      `Cannot delete an event with ${confirmedBookings} confirmed booking(s)`,
+    );
+  }
+
+  // Soft delete: keep the row + its bookings, hide it everywhere.
+  await prisma.event.update({
+    where: { id: eventId },
+    data: { deletedAt: new Date(), status: EventStatus.CANCELLED },
+  });
 
   return { deleted: true };
 };
@@ -264,16 +304,22 @@ const deleteEvent = async (eventId: string, userId: string, role: UserRole) => {
 //   return events;
 // };
 
-const getAllEvents = async (params: any, options: IPaginationOptions, user: any) => {
+const getAllEvents = async (params: any, options: IPaginationOptions, _user: any) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
   const { searchTerm, category, date, status, ...filterData } = params;
 
   const andConditions: Prisma.EventWhereInput[] = [];
 
-  andConditions.push({ status: EventStatus.OPEN });
+  andConditions.push({ deletedAt: null });
 
   const now = new Date();
-  andConditions.push({ eventDate: { gte: now } });
+
+  // Default public browse = OPEN + future. An explicit status/date filter overrides the default.
+  if (status) {
+    andConditions.push({ status: status as EventStatus });
+  } else {
+    andConditions.push({ status: EventStatus.OPEN });
+  }
 
   if (searchTerm) {
     andConditions.push({
@@ -282,8 +328,6 @@ const getAllEvents = async (params: any, options: IPaginationOptions, user: any)
       })),
     });
   }
-
-  if (status) andConditions.push({ status: status as any });
 
   if (category) {
     andConditions.push({
@@ -302,6 +346,8 @@ const getAllEvents = async (params: any, options: IPaginationOptions, user: any)
 
       andConditions.push({ eventDate: { gte: start, lte: end } });
     }
+  } else if (!status) {
+    andConditions.push({ eventDate: { gte: now } });
   }
 
   if (Object.keys(filterData).length > 0) {
@@ -328,52 +374,9 @@ const getAllEvents = async (params: any, options: IPaginationOptions, user: any)
 
   const total = await prisma.event.count({ where: whereConditions });
 
-  console.log("total  :", total);
-
-  console.log("u", user);
-
-  if (user && user.role !== "ADMIN") {
-    const userData = await prisma.user.findUnique({
-      where: { email: user.email },
-      select: { interests: true },
-    });
-
-    console.log("ud", userData);
-
-    console.log("user interests :", user?.interests);
-
-    // const host = await prisma.host.findUnique({
-    //   where: { email: user.email },
-    //   select: { interests: true },
-    // });
-
-    const userInterests = user?.interests || [];
-
-    if (userInterests.length > 0) {
-      const mindLikeEvents = [];
-      const otherEvents = [];
-
-      for (const ev of events) {
-        const match = ev.type.some((c) => userInterests.includes(c as any));
-
-        console.log("match :", match);
-        console.log("user Interest :", userInterests);
-
-        if (match) mindLikeEvents.push(ev);
-        else otherEvents.push(ev);
-      }
-
-      const orderedEvents = [...mindLikeEvents, ...otherEvents];
-
-      return {
-        meta: { page, limit, total },
-        events: orderedEvents,
-      };
-    }
-  }
   return {
     meta: { page, limit, total },
-    events: events,
+    data: events,
   };
 };
 
@@ -382,38 +385,19 @@ const getEventDetails = async (eventId: string) => {
     where: { id: eventId },
     include: {
       host: { select: userPublicSelect },
-      // participants: {
-      //   include: {
-      //     client: true,
-      //   },
-      // },
+      bookings: { select: { id: true, userId: true, status: true } },
     },
   });
 
-  if (!event) return null;
+  if (!event || event.deletedAt) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Event not found");
+  }
 
-  const participantsCount = event.maxParticipants;
-
-  // const participantsInfo = event.participants.map((p) => ({
-  //   id: p.id,
-  //   joinedAt: p.createdAt,
-  //   clientId: p.clientId,
-  //   client: {
-  //     id: p.client.id,
-  //     name: p.client.name,
-  //     email: p.client.email,
-  //     profilePhoto: p.client.profilePhoto,
-  //     contactNumber: p.client.contactNumber,
-  //     location: p.client.location,
-  //     bio: p.client.bio,
-  //     interests: p.client.interests,
-  //   },
-  // }));
+  const participantsCount = event.bookings.filter((b) => b.status === "CONFIRMED").length;
 
   return {
     ...event,
     participantsCount,
-    // participantsInfo,
   };
 };
 
@@ -812,29 +796,140 @@ const getEventDetails = async (eventId: string) => {
 
 //   return deletedEvent;
 // };
-export const getMyHostedEvents = async (hostId: string) => {
-  const events = await prisma.event.findMany({
-    where: { hostId },
-    orderBy: { eventDate: "desc" },
-    include: {
-      _count: {
-        select: { bookings: true },
+export const getMyHostedEvents = async (hostId: string, options: IPaginationOptions = {}) => {
+  const { page, limit, skip } = paginationHelper.calculatePagination(options);
+
+  const where: Prisma.EventWhereInput = { hostId, deletedAt: null };
+
+  const [events, total] = await Promise.all([
+    prisma.event.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { eventDate: "desc" },
+      include: {
+        _count: {
+          select: { bookings: true },
+        },
       },
-    },
+    }),
+    prisma.event.count({ where }),
+  ]);
+
+  return { meta: { page, limit, total }, data: events };
+};
+
+export const getRecentEvents = async (limit = 6) => {
+  return prisma.event.findMany({
+    where: { status: EventStatus.OPEN, eventDate: { gte: new Date() }, deletedAt: null },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: { host: { select: userPublicSelect } },
+  });
+};
+
+export const getMyEvents = async (userId: string, options: IPaginationOptions = {}) => {
+  const { page, limit, skip } = paginationHelper.calculatePagination(options);
+
+  const where: Prisma.BookingWhereInput = {
+    userId,
+    status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+    event: { deletedAt: null },
+  };
+
+  const [bookings, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { bookedAt: "desc" },
+      include: {
+        event: { include: { host: { select: userPublicSelect } } },
+      },
+    }),
+    prisma.booking.count({ where }),
+  ]);
+
+  return { meta: { page, limit, total }, data: bookings.map((b) => b.event) };
+};
+
+export const getEventParticipants = async (
+  eventId: string,
+  userId: string,
+  role: string,
+  options: IPaginationOptions = {},
+) => {
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { hostId: true, deletedAt: true },
   });
 
-  return events;
+  if (!event || event.deletedAt) throw new ApiError(httpStatus.NOT_FOUND, "Event not found");
+  if (role !== "ADMIN" && event.hostId !== userId) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You are not allowed to view participants");
+  }
+
+  const { page, limit, skip } = paginationHelper.calculatePagination(options);
+
+  const where: Prisma.BookingWhereInput = {
+    eventId,
+    status: { in: ["CONFIRMED", "COMPLETED"] },
+  };
+
+  const [participants, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { bookedAt: "asc" },
+      include: { user: { select: userPublicSelect } },
+    }),
+    prisma.booking.count({ where }),
+  ]);
+
+  return { meta: { page, limit, total }, data: participants };
+};
+
+export const completeEvent = async (eventId: string, userId: string, role: string) => {
+  const existing = await prisma.event.findUnique({
+    where: { id: eventId },
+  });
+
+  if (!existing || existing.deletedAt) throw new ApiError(httpStatus.NOT_FOUND, "Event not found");
+  if (role !== "ADMIN" && existing.hostId !== userId) {
+    throw new ApiError(httpStatus.FORBIDDEN, "You are not allowed to complete this event");
+  }
+  if (existing.status === EventStatus.COMPLETED) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Event is already completed");
+  }
+  if (existing.status === EventStatus.CANCELLED) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Cancelled events cannot be completed");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.booking.updateMany({
+      where: { eventId, status: { in: ["PENDING", "CONFIRMED"] } },
+      data: { status: "COMPLETED" },
+    });
+
+    const updated = await tx.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.COMPLETED },
+    });
+
+    return updated;
+  });
 };
 
 export const EventService = {
   createEvent,
   updateEvent,
-  // changeStatus,
   getAllEvents,
   getEventDetails,
-  // getMyEvents,
-  // joinEvent,
-  // leaveEvent,
+  getRecentEvents,
+  getMyEvents,
+  getEventParticipants,
+  completeEvent,
   deleteEvent,
   getMyHostedEvents,
 };

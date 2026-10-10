@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import httpStatus from "http-status";
 import type { IJWTPayload } from "../../types/common.js";
 import ApiError from "../../utils/ApiError.js";
+import { writeAuditLog } from "../../utils/audit.js";
 import catchAsync from "../../utils/catchAsync.js";
 import { fileUploader } from "../../utils/fileUploader.js";
 import pick from "../../utils/pick.js";
@@ -147,7 +148,8 @@ const getAllEvents = catchAsync(async (req: Request & { user?: IJWTPayload }, re
     statusCode: httpStatus.OK,
     success: true,
     message: "All Events Retrieved Successfully!",
-    data: result,
+    meta: result.meta,
+    data: result.data,
   });
 });
 
@@ -271,23 +273,103 @@ const getEventDetails = catchAsync(async (req: Request, res: Response) => {
 // );
 export const getMyHostedEvents = catchAsync(
   async (req: Request & { user?: IJWTPayload }, res: Response) => {
-    const result = await EventService.getMyHostedEvents(req.user!.id);
+    const result = await EventService.getMyHostedEvents(req.user!.id, req.query);
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
       message: "Hosted events fetched successfully",
+      meta: result.meta,
+      data: result.data,
+    });
+  },
+);
+
+export const getRecentEvents = catchAsync(async (req: Request, res: Response) => {
+  const limit = Number(req.query.limit) || 6;
+  const result = await EventService.getRecentEvents(limit);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Recent events fetched successfully",
+    data: result,
+  });
+});
+
+export const getMyEvents = catchAsync(
+  async (req: Request & { user?: IJWTPayload }, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
+
+    const result = await EventService.getMyEvents(userId, req.query);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "My events fetched successfully",
+      meta: result.meta,
+      data: result.data,
+    });
+  },
+);
+
+export const getEventParticipants = catchAsync(
+  async (req: Request & { user?: IJWTPayload }, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
+
+    const result = await EventService.getEventParticipants(
+      req.params.eventId as string,
+      userId,
+      req.user!.role,
+      req.query,
+    );
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Participants fetched successfully",
+      meta: result.meta,
+      data: result.data,
+    });
+  },
+);
+
+export const completeEvent = catchAsync(
+  async (req: Request & { user?: IJWTPayload }, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) throw new ApiError(httpStatus.UNAUTHORIZED, "Unauthorized");
+
+    const result = await EventService.completeEvent(
+      req.params.eventId as string,
+      userId,
+      req.user!.role,
+    );
+
+    await writeAuditLog({
+      actorId: userId,
+      actorRole: req.user?.role,
+      action: "EVENT_COMPLETED",
+      resourceType: "Event",
+      resourceId: req.params.eventId as string,
+      ip: req.ip,
+    });
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Event completed successfully",
       data: result,
     });
   },
 );
+
 export const EventController = {
   createEvent,
   updateEvent,
   getAllEvents,
   getEventDetails,
-  // getMyEvents,
   deleteEvent,
-  // joinEvent,
-  // leaveEvent,
   getMyHostedEvents,
+  getRecentEvents,
+  getMyEvents,
+  getEventParticipants,
+  completeEvent,
 };
