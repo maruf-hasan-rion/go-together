@@ -4,7 +4,7 @@ model Payment {
   bookingId String  @unique
   booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  amount        Float
+  amount        Decimal       @db.Decimal(10, 2)
   transactionId String?       @unique
   paymentMethod String?
   status        PaymentStatus @default(PENDING)

@@ -1,0 +1,466 @@
+{
+  "info": {
+    "name": "Go Together API",
+    "description": "REST API for the Go Together events platform. All routes are under /api/v1. Auth accepts either the accessToken cookie or an Authorization: Bearer header.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (JSON alias)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Test User\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["const body = pm.response.json(); if (body?.data?.accessToken) { pm.collectionVariables.set('accessToken', body.data.accessToken); }"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Google login",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/google", "host": ["{{baseUrl}}"], "path": ["auth", "google"] },
+            "body": { "mode": "raw", "raw": "{\n  \"idToken\": \"<google-id-token>\"\n}" }
+          }
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/auth/refresh-token", "host": ["{{baseUrl}}"], "path": ["auth", "refresh-token"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "Forgot password",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"user@example.com\"\n}" }
+          }
+        },
+        {
+          "name": "Reset password",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["auth", "reset-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"<reset-token>\",\n  \"newPassword\": \"newpassword123\"\n}" }
+          }
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/change-password", "host": ["{{baseUrl}}"], "path": ["auth", "change-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"oldPassword\": \"password123\",\n  \"newPassword\": \"newpassword123\"\n}" }
+          }
+        },
+        {
+          "name": "Apply to become host",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/apply-host", "host": ["{{baseUrl}}"], "path": ["auth", "apply-host"] },
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"I would like to host events on Go Together.\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create user (multipart)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/user/create-user", "host": ["{{baseUrl}}"], "path": ["user", "create-user"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "data", "value": "{\"fullName\":\"Test User\",\"email\":\"user@example.com\",\"password\":\"password123\"}", "type": "text" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update my profile (multipart)",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/user/update-my-profile", "host": ["{{baseUrl}}"], "path": ["user", "update-my-profile"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "data", "value": "{\"fullName\":\"Test User\",\"location\":\"Dhaka\",\"bio\":\"Hello\"}", "type": "text" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Public profile",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/users/:id", "host": ["{{baseUrl}}"], "path": ["users", ":id"], "variable": [{ "key": "id", "value": "<user-id>" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "List events",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/event?page=1&limit=9", "host": ["{{baseUrl}}"], "path": ["event"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "9" }] }
+          }
+        },
+        {
+          "name": "Recent events",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/event/recent-events", "host": ["{{baseUrl}}"], "path": ["event", "recent-events"] }
+          }
+        },
+        {
+          "name": "My events (booked)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/event/my-events", "host": ["{{baseUrl}}"], "path": ["event", "my-events"] }
+          }
+        },
+        {
+          "name": "My hosted events",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/event/my-hosted-events", "host": ["{{baseUrl}}"], "path": ["event", "my-hosted-events"] }
+          }
+        },
+        {
+          "name": "Event details",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/event/:eventId", "host": ["{{baseUrl}}"], "path": ["event", ":eventId"], "variable": [{ "key": "eventId", "value": "<event-id>" }] }
+          }
+        },
+        {
+          "name": "Event participants",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/event/:eventId/participants", "host": ["{{baseUrl}}"], "path": ["event", ":eventId", "participants"], "variable": [{ "key": "eventId", "value": "<event-id>" }] }
+          }
+        },
+        {
+          "name": "Create event (multipart)",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/event/create-event", "host": ["{{baseUrl}}"], "path": ["event", "create-event"] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "data", "value": "{\"title\":\"Tech Meetup\",\"type\":[\"TECH_MEETUP\"],\"description\":\"A meetup\",\"eventDate\":\"2030-01-01T10:00:00.000Z\",\"location\":\"Dhaka\",\"joiningFee\":200,\"maxParticipants\":20}", "type": "text" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update event (multipart)",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/event/:eventId", "host": ["{{baseUrl}}"], "path": ["event", ":eventId"], "variable": [{ "key": "eventId", "value": "<event-id>" }] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "data", "value": "{\"title\":\"Tech Meetup v2\"}", "type": "text" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Complete event",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/event/:eventId/complete", "host": ["{{baseUrl}}"], "path": ["event", ":eventId", "complete"], "variable": [{ "key": "eventId", "value": "<event-id>" }] }
+          }
+        },
+        {
+          "name": "Delete event (soft)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/event/:eventId", "host": ["{{baseUrl}}"], "path": ["event", ":eventId"], "variable": [{ "key": "eventId", "value": "<event-id>" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Create booking",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/bookings", "host": ["{{baseUrl}}"], "path": ["bookings"] },
+            "body": { "mode": "raw", "raw": "{\n  \"eventId\": \"<event-uuid>\"\n}" }
+          }
+        },
+        {
+          "name": "My bookings",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/bookings/my-bookings", "host": ["{{baseUrl}}"], "path": ["bookings", "my-bookings"] }
+          }
+        },
+        {
+          "name": "Booking details",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/bookings/:bookingId", "host": ["{{baseUrl}}"], "path": ["bookings", ":bookingId"], "variable": [{ "key": "bookingId", "value": "<booking-id>" }] }
+          }
+        },
+        {
+          "name": "Cancel booking",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/bookings/:bookingId/cancel", "host": ["{{baseUrl}}"], "path": ["bookings", ":bookingId", "cancel"], "variable": [{ "key": "bookingId", "value": "<booking-id>" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Create payment intent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payments/create-intent", "host": ["{{baseUrl}}"], "path": ["payments", "create-intent"] },
+            "body": { "mode": "raw", "raw": "{\n  \"bookingId\": \"<booking-id>\"\n}" }
+          }
+        },
+        {
+          "name": "Confirm payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payments/confirm", "host": ["{{baseUrl}}"], "path": ["payments", "confirm"] },
+            "body": { "mode": "raw", "raw": "{\n  \"paymentIntentId\": \"<payment-intent-id>\"\n}" }
+          }
+        },
+        {
+          "name": "Payment history",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/payments/history", "host": ["{{baseUrl}}"], "path": ["payments", "history"] }
+          }
+        },
+        {
+          "name": "Stripe webhook (raw + signature)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Stripe-Signature", "value": "<stripe-signature>" }
+            ],
+            "url": { "raw": "{{baseUrl}}/payments/webhook", "host": ["{{baseUrl}}"], "path": ["payments", "webhook"] },
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Create review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] },
+            "body": { "mode": "raw", "raw": "{\n  \"eventId\": \"<event-id>\",\n  \"rating\": 5,\n  \"comment\": \"Great event!\"\n}" }
+          }
+        },
+        {
+          "name": "Event reviews",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/reviews/event/:eventId", "host": ["{{baseUrl}}"], "path": ["reviews", "event", ":eventId"], "variable": [{ "key": "eventId", "value": "<event-id>" }] }
+          }
+        },
+        {
+          "name": "Host reviews",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/reviews/host/:hostId", "host": ["{{baseUrl}}"], "path": ["reviews", "host", ":hostId"], "variable": [{ "key": "hostId", "value": "<host-id>" }] }
+          }
+        },
+        {
+          "name": "My review for event",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/reviews/my-review/:eventId", "host": ["{{baseUrl}}"], "path": ["reviews", "my-review", ":eventId"], "variable": [{ "key": "eventId", "value": "<event-id>" }] }
+          }
+        },
+        {
+          "name": "Public testimonials",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/reviews/public-testimonials", "host": ["{{baseUrl}}"], "path": ["reviews", "public-testimonials"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/admin/users?page=1&limit=9", "host": ["{{baseUrl}}"], "path": ["admin", "users"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "9" }] }
+          }
+        },
+        {
+          "name": "List hosts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/admin/hosts", "host": ["{{baseUrl}}"], "path": ["admin", "hosts"] }
+          }
+        },
+        {
+          "name": "List host applications",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/admin/host-applications?status=PENDING", "host": ["{{baseUrl}}"], "path": ["admin", "host-applications"], "query": [{ "key": "status", "value": "PENDING" }] }
+          }
+        },
+        {
+          "name": "Approve host application",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/admin/host-applications/:id/approve", "host": ["{{baseUrl}}"], "path": ["admin", "host-applications", ":id", "approve"], "variable": [{ "key": "id", "value": "<application-id>" }] }
+          }
+        },
+        {
+          "name": "Reject host application",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/admin/host-applications/:id/reject", "host": ["{{baseUrl}}"], "path": ["admin", "host-applications", ":id", "reject"], "variable": [{ "key": "id", "value": "<application-id>" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Insufficient experience\"\n}" }
+          }
+        },
+        {
+          "name": "Block user",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/admin/users/:id/block", "host": ["{{baseUrl}}"], "path": ["admin", "users", ":id", "block"], "variable": [{ "key": "id", "value": "<user-id>" }] }
+          }
+        },
+        {
+          "name": "Unblock user",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/admin/users/:id/unblock", "host": ["{{baseUrl}}"], "path": ["admin", "users", ":id", "unblock"], "variable": [{ "key": "id", "value": "<user-id>" }] }
+          }
+        },
+        {
+          "name": "Delete user (soft)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/admin/users/:id", "host": ["{{baseUrl}}"], "path": ["admin", "users", ":id"], "variable": [{ "key": "id", "value": "<user-id>" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Meta",
+      "item": [
+        {
+          "name": "Dashboard meta",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/meta", "host": ["{{baseUrl}}"], "path": ["meta"] }
+          }
+        },
+        {
+          "name": "Landing page stats",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{baseUrl}}/meta/landing-page", "host": ["{{baseUrl}}"], "path": ["meta", "landing-page"] }
+          }
+        }
+      ]
+    }
+  ]
+}

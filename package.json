@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/src/server.js",
     "test": "vitest run",
+    "seed": "tsx prisma/seed.ts",
     "format:check": "biome format ./src ./tests ./prisma",
     "format:fix": "biome format --write ./src ./tests ./prisma",
     "lint:check": "biome lint ./src ./tests",
@@ -19,6 +20,9 @@
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@12.3.4",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "engines": {
     "node": ">=20.9"
   },

@@ -13,7 +13,7 @@ model Event {
     maxParticipants     Int
     currentParticipants Int @default(0)
 
-    joiningFee Float @default(0)
+    joiningFee Decimal @default(0) @db.Decimal(10, 2)
 
     status EventStatus @default(OPEN)
 
@@ -23,15 +23,17 @@ model Event {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
+    // soft delete: hidden from every list; a delete keeps the row + bookings
+    deletedAt DateTime?
+
     bookings Booking[]
     reviews  Review[]
-    //  payments          Payment[]
 
-    // @@index([hostId])
-    // @@index([eventDate])
-    // @@index([type])
-    // @@index([status])
-    //  @@index([city])
+    @@index([hostId])
+    @@index([eventDate])
+    @@index([status])
+    @@index([status, eventDate])
+    @@index([deletedAt])
     @@map("events")
 }
 
@@ -46,7 +48,7 @@ model Booking {
 
     status      BookingStatus @default(PENDING)
     // numberOfTickets Int           @default(1)
-    totalAmount Float
+    totalAmount Decimal       @db.Decimal(10, 2)
     payments    Payment[]
 
     bookedAt  DateTime @default(now())

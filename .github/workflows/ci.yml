@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  server:
+    name: Server (lint, test, build)
+    runs-on: ubuntu-latest
+    env:
+      # prisma generate / tsc only need the var to exist; no DB is contacted.
+      DATABASE_URL: postgresql://user:password@localhost:5432/go_together
+      JWT_SECRET: ci-placeholder-secret
+      REFRESH_TOKEN_SECRET: ci-placeholder-secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm exec prisma generate
+
+      - name: Format check
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint:check
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build (tsc)
+        run: pnpm run build
