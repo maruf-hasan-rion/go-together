@@ -53,9 +53,21 @@ const getPublicProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getTopHosts = catchAsync(async (_req: Request, res: Response) => {
+  const result = await UserService.getTopHosts();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Top hosts retrieved successfully",
+    data: result,
+  });
+});
+
 export const UserController = {
   createUser,
   // becomeHost,
   updateMyProfile,
   getPublicProfile,
+  getTopHosts,
 };

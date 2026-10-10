@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import type { Request } from "express";
 import httpStatus from "http-status";
+import { UserRole } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { userPublicSelect } from "../../serializers/user.js";
 import type { IJWTPayload } from "../../types/common.js";
@@ -93,9 +94,19 @@ const getPublicProfile = async (id: string) => {
   return publicUser;
 };
 
+const getTopHosts = async (limit = 6) => {
+  return prisma.user.findMany({
+    where: { role: UserRole.HOST, deletedAt: null },
+    orderBy: [{ averageRating: "desc" }, { totalReviews: "desc" }],
+    take: limit,
+    select: userPublicSelect,
+  });
+};
+
 export const UserService = {
   createUser,
   // becomeHost,
   updateMyProfile,
   getPublicProfile,
+  getTopHosts,
 };
