@@ -2,7 +2,9 @@ import type Stripe from "stripe";
 import config from "../../../config/index.js";
 import { prisma } from "../../lib/prisma.js";
 import { stripe } from "../../lib/stripe.js";
+import type { IPaginationOptions } from "../../types/pagination.js";
 import ApiError from "../../utils/ApiError.js";
+import { paginationHelper } from "../../utils/pagination.js";
 
 // const handleStripeWebhookEvent = async (event: Stripe.Event) => {
 //   if (event.type === "checkout.session.completed") {
@@ -110,7 +112,7 @@ const createPaymentIntent = async (bookingId: string, userId: string) => {
     };
   } else {
     paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(booking.totalAmount * 100),
+      amount: Math.round(Number(booking.totalAmount) * 100),
       currency: "usd",
       metadata: {
         bookingId: booking.id,
@@ -193,54 +195,133 @@ const confirmPayment = async (paymentIntentId: string, userId: string) => {
     if (paymentIntent.status !== "succeeded") {
       throw new ApiError(400, "Payment is not completed on Stripe");
     }
-    if (paymentIntent.amount !== Math.round(payment.amount * 100)) {
+    if (paymentIntent.amount !== Math.round(Number(payment.amount) * 100)) {
       throw new ApiError(400, "Payment amount does not match the booking");
     }
   }
 
-  // Update payment and booking atomically
-  await prisma.$transaction([
-    prisma.payment.update({
-      where: { id: payment.id },
-      data: { status: "COMPLETED" },
-    }),
-    prisma.booking.update({
-      where: { id: payment.bookingId },
-      data: { status: "CONFIRMED" },
-    }),
-  ]);
+  await completePayment(payment.id, payment.bookingId, payment.booking.eventId);
 
   return { success: true, message: "Payment confirmed successfully" };
 };
 
-const getPaymentHistory = async (userId: string) => {
-  const payments = await prisma.payment.findMany({
-    where: {
-      booking: {
-        userId,
-      },
-    },
-    include: {
-      booking: {
-        include: {
-          event: {
-            select: {
-              title: true,
-              eventDate: true,
-              location: true,
+/**
+ * Shared completion path used by both the client confirm endpoint and the
+ * Stripe webhook: mark the payment COMPLETED, the booking CONFIRMED, and the
+ * event FULL once it reaches capacity.
+ */
+const completePayment = async (paymentId: string, bookingId: string, eventId: string) => {
+  await prisma.$transaction([
+    prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: "COMPLETED" },
+    }),
+    prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: "CONFIRMED" },
+    }),
+  ]);
+
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { status: true, maxParticipants: true },
+  });
+
+  if (event?.status === "OPEN") {
+    const activeCount = await prisma.booking.count({
+      where: { eventId, status: { in: ["PENDING", "CONFIRMED"] } },
+    });
+    if (activeCount >= event.maxParticipants) {
+      await prisma.event.update({ where: { id: eventId }, data: { status: "FULL" } });
+    }
+  }
+};
+
+/** Refund a COMPLETED payment on cancellation (skipped for demo payments). */
+const refundBookingPayment = async (paymentId: string) => {
+  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  if (!payment || payment.status !== "COMPLETED") return;
+
+  const isDemoPayment = payment.transactionId?.startsWith("demo_pi_");
+
+  if (!isDemoPayment && payment.transactionId) {
+    try {
+      await stripe.refunds.create({ payment_intent: payment.transactionId });
+    } catch (error) {
+      console.error("Stripe refund failed:", error);
+      throw new ApiError(400, "Refund failed; booking was not cancelled");
+    }
+  }
+
+  await prisma.payment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } });
+};
+
+/** Stripe webhook: authoritative payment confirmation, signature-verified. */
+const handleStripeWebhook = async (rawBody: Buffer, signature: string | undefined) => {
+  if (!config.webhook_secret_key) {
+    throw new ApiError(400, "Webhook is not configured");
+  }
+  if (!signature) {
+    throw new ApiError(400, "Missing Stripe signature");
+  }
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(rawBody, signature, config.webhook_secret_key);
+  } catch {
+    throw new ApiError(400, "Invalid Stripe signature");
+  }
+
+  if (event.type === "payment_intent.succeeded") {
+    const intent = event.data.object as Stripe.PaymentIntent;
+    const payment = await prisma.payment.findUnique({
+      where: { transactionId: intent.id },
+      include: { booking: { select: { eventId: true } } },
+    });
+
+    if (payment && payment.status !== "COMPLETED") {
+      await completePayment(payment.id, payment.bookingId, payment.booking.eventId);
+    }
+  }
+
+  return { received: true };
+};
+
+const getPaymentHistory = async (userId: string, options: IPaginationOptions = {}) => {
+  const { page, limit, skip } = paginationHelper.calculatePagination(options);
+
+  const where = { booking: { userId } };
+
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        booking: {
+          include: {
+            event: {
+              select: {
+                title: true,
+                eventDate: true,
+                location: true,
+              },
             },
           },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+    }),
+    prisma.payment.count({ where }),
+  ]);
 
-  return payments;
+  return { meta: { page, limit, total }, data: payments };
 };
 
 export const PaymentService = {
   createPaymentIntent,
   confirmPayment,
+  refundBookingPayment,
+  handleStripeWebhook,
   getPaymentHistory,
 };

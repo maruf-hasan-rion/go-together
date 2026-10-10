@@ -1,9 +1,16 @@
 import { prisma } from "../../lib/prisma.js";
+import { userPublicSelect } from "../../serializers/user.js";
+import type { IPaginationOptions } from "../../types/pagination.js";
 import ApiError from "../../utils/ApiError.js";
+import { paginationHelper } from "../../utils/pagination.js";
+import { PaymentService } from "../payment/payment.service.js";
 
 interface CreateBookingData {
   eventId: string;
 }
+
+/** A PENDING booking that is never paid releases its seat after this window. */
+export const PENDING_BOOKING_TTL_MS = 15 * 60 * 1000;
 
 export const createBookingService = async (userId: string, data: CreateBookingData) => {
   const { eventId } = data;
@@ -18,23 +25,17 @@ export const createBookingService = async (userId: string, data: CreateBookingDa
     },
   });
 
-  if (!event) throw new ApiError(404, "Event not found");
+  if (!event || event.deletedAt) throw new ApiError(404, "Event not found");
   if (event.status !== "OPEN") throw new ApiError(400, "Event is not available");
   if (event.hostId === userId) throw new ApiError(400, "You cannot book your own event");
 
   const amount = Number(event.joiningFee ?? 0);
-  if (amount <= 0) throw new ApiError(400, "Paid-only mode: joining fee must be greater than 0");
-
-  // seats already taken (active bookings)
-  const totalBookedSeats = event.bookings.length; // 1 booking = 1 seat in your schema
-  const spotsLeft = event.maxParticipants - totalBookedSeats;
-
-  if (spotsLeft <= 0) {
-    throw new ApiError(400, "Event is fully booked");
-  }
+  // Free events book straight to CONFIRMED; paid events go to PENDING and wait
+  // for payment.
+  const isFree = amount <= 0;
 
   // Check if user already booked
-  const existingBooking = await prisma.booking.findUnique({
+  let existingBooking = await prisma.booking.findUnique({
     where: {
       userId_eventId: {
         userId,
@@ -43,21 +44,43 @@ export const createBookingService = async (userId: string, data: CreateBookingDa
     },
   });
 
+  // Expire the caller's own stale PENDING booking so they can retry.
+  if (
+    existingBooking?.status === "PENDING" &&
+    existingBooking.bookedAt.getTime() < Date.now() - PENDING_BOOKING_TTL_MS
+  ) {
+    existingBooking = await prisma.booking.update({
+      where: { id: existingBooking.id },
+      data: { status: "CANCELLED" },
+    });
+  }
+
   // allow re-book only if previously CANCELLED
   if (existingBooking && existingBooking.status !== "CANCELLED") {
     throw new ApiError(400, "Already booked this event");
   }
 
-  // ---- Transaction: create/renew booking + create checkout + upsert payment + update event status
-  return await prisma.$transaction(async (tx) => {
-    // Re-check capacity INSIDE transaction (prevents race condition)
+  // Transaction: lock the event row, re-check capacity, then create/renew the booking.
+  const outcome = await prisma.$transaction(async (tx) => {
+    // Serialize concurrent bookings for this event on the capacity check.
+    await tx.$queryRaw`SELECT id FROM events WHERE id = ${eventId} FOR UPDATE`;
+
+    // Release seats from abandoned PENDING bookings before counting.
+    await tx.booking.updateMany({
+      where: {
+        eventId,
+        status: "PENDING",
+        bookedAt: { lt: new Date(Date.now() - PENDING_BOOKING_TTL_MS) },
+      },
+      data: { status: "CANCELLED" },
+    });
+
     const activeCount = await tx.booking.count({
       where: { eventId, status: { in: ["CONFIRMED", "PENDING"] } },
     });
 
     if (activeCount >= event.maxParticipants) {
-      await tx.event.update({ where: { id: eventId }, data: { status: "FULL" } }).catch(() => {});
-      throw new ApiError(400, "Event is fully booked");
+      return { full: true as const };
     }
 
     const booking =
@@ -65,7 +88,7 @@ export const createBookingService = async (userId: string, data: CreateBookingDa
         ? await tx.booking.update({
             where: { id: existingBooking.id },
             data: {
-              status: "PENDING",
+              status: isFree ? "CONFIRMED" : "PENDING",
               totalAmount: amount,
             },
           })
@@ -74,12 +97,34 @@ export const createBookingService = async (userId: string, data: CreateBookingDa
               userId,
               eventId,
               totalAmount: amount,
-              status: "PENDING",
+              status: isFree ? "CONFIRMED" : "PENDING",
             },
           });
 
-    return booking;
+    // Free booking: record a FREE payment so history/relations stay consistent.
+    if (isFree) {
+      await tx.payment.upsert({
+        where: { bookingId: booking.id },
+        create: { bookingId: booking.id, amount: 0, status: "FREE" },
+        update: { amount: 0, status: "FREE" },
+      });
+    }
+
+    // Last seat reserved -> mark the event FULL.
+    if (activeCount + 1 >= event.maxParticipants) {
+      await tx.event.update({ where: { id: eventId }, data: { status: "FULL" } });
+    }
+
+    return { full: false as const, booking };
   });
+
+  // Persist FULL outside the transaction: throwing inside would roll the write back.
+  if (outcome.full) {
+    await prisma.event.update({ where: { id: eventId }, data: { status: "FULL" } }).catch(() => {});
+    throw new ApiError(400, "Event is fully booked");
+  }
+
+  return outcome.booking;
 };
 
 // export const createBooking = async (
@@ -187,66 +232,70 @@ export const createBookingService = async (userId: string, data: CreateBookingDa
 //   return result;
 // };
 
-export const getUserBookings = async (userId: string) => {
-  const bookings = await prisma.booking.findMany({
-    where: { userId },
-    orderBy: { bookedAt: "desc" },
-    include: {
-      event: {
-        include: {
-          host: {
-            select: {
-              id: true,
-              fullName: true,
-              profilePhoto: true,
+export const getUserBookings = async (userId: string, options: IPaginationOptions = {}) => {
+  const { page, limit, skip } = paginationHelper.calculatePagination(options);
+
+  const where = { userId };
+
+  const [bookings, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { bookedAt: "desc" },
+      include: {
+        event: {
+          include: {
+            host: {
+              select: {
+                id: true,
+                fullName: true,
+                profilePhoto: true,
+              },
             },
           },
         },
+        payments: true,
       },
-      payments: true,
-    },
-  });
+    }),
+    prisma.booking.count({ where }),
+  ]);
 
-  return bookings;
+  return { meta: { page, limit, total }, data: bookings };
 };
 
-export const getBookingDetails = async (bookingId: string, userId: string) => {
-  // Verify host owns the event
-  const event = await prisma.event.findUnique({
+export const getBookingDetails = async (bookingId: string, userId: string, role: string) => {
+  const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-  });
-
-  if (!event) {
-    throw new ApiError(404, "Event not found");
-  }
-
-  if (event.hostId !== userId) {
-    throw new ApiError(403, "You do not have permission to view these bookings");
-  }
-
-  const bookings = await prisma.booking.findMany({
-    where: { userId },
     include: {
-      user: {
-        select: {
-          id: true,
-          fullName: true,
-          email: true,
-          profilePhoto: true,
+      event: {
+        include: {
+          host: { select: userPublicSelect },
         },
       },
-      // payments: true,
+      payments: true,
+      user: { select: userPublicSelect },
     },
-    orderBy: { bookedAt: "desc" },
   });
 
-  return bookings;
+  if (!booking) {
+    throw new ApiError(404, "Booking not found");
+  }
+
+  const isOwner = booking.userId === userId;
+  const isHost = booking.event.hostId === userId;
+
+  if (!isOwner && !isHost && role !== "ADMIN") {
+    throw new ApiError(403, "You do not have permission to view this booking");
+  }
+
+  return booking;
 };
 
 export const cancelBooking = async (bookingId: string, userId: string) => {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { event: true },
+    include: { payments: true },
   });
 
   if (!booking) {
@@ -261,21 +310,47 @@ export const cancelBooking = async (bookingId: string, userId: string) => {
     throw new ApiError(400, "Booking is already cancelled");
   }
 
-  // Update booking status
-  const updatedBooking = await prisma.booking.update({
-    where: { id: bookingId },
+  // Refund a paid booking before cancelling. The external Stripe call runs
+  // first; if it fails the booking is left intact (see refundBookingPayment).
+  const paidPayment = booking.payments.find((p) => p.status === "COMPLETED");
+  if (paidPayment) {
+    await PaymentService.refundBookingPayment(paidPayment.id);
+  }
+
+  // Cancel the booking and reopen the event (if it was FULL) atomically.
+  return prisma.$transaction(async (tx) => {
+    const updatedBooking = await tx.booking.update({
+      where: { id: bookingId },
+      data: { status: "CANCELLED" },
+    });
+
+    const event = await tx.event.findUnique({
+      where: { id: booking.eventId },
+      select: { status: true },
+    });
+
+    if (event?.status === "FULL") {
+      await tx.event.update({
+        where: { id: booking.eventId },
+        data: { status: "OPEN" },
+      });
+    }
+
+    return updatedBooking;
+  });
+};
+
+/** Global sweeper: release seats held by abandoned PENDING bookings. */
+export const expireStalePendingBookings = async () => {
+  const result = await prisma.booking.updateMany({
+    where: {
+      status: "PENDING",
+      bookedAt: { lt: new Date(Date.now() - PENDING_BOOKING_TTL_MS) },
+    },
     data: { status: "CANCELLED" },
   });
 
-  // Update event status if it was full
-  if (booking.event.status === "FULL") {
-    await prisma.event.update({
-      where: { id: booking.eventId },
-      data: { status: "OPEN" },
-    });
-  }
-
-  return updatedBooking;
+  return result.count;
 };
 
 export const BookingService = {
@@ -283,4 +358,5 @@ export const BookingService = {
   getUserBookings,
   getBookingDetails,
   cancelBooking,
+  expireStalePendingBookings,
 };

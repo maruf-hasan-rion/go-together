@@ -16,6 +16,8 @@ router.post(
 
 router.get("/my-bookings", auth(), BookingController.getUserBookings);
 
+router.patch("/:bookingId/cancel", auth(), BookingController.cancelBooking);
+
 router.get("/:bookingId", auth(), BookingController.getBookingDetails);
 
 router.delete("/:bookingId", auth(), BookingController.cancelBooking);
