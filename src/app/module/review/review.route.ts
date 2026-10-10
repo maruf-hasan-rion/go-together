@@ -14,6 +14,9 @@ router.post(
   ReviewController.addReview,
 );
 
-router.get("/", ReviewController.getAllReview);
+router.get("/public-testimonials", ReviewController.getPublicTestimonials);
+router.get("/my-review/:eventId", auth(), ReviewController.getMyReviewForEvent);
+router.get("/event/:eventId", ReviewController.getEventReviews);
+router.get("/host/:hostId", ReviewController.getHostReviews);
 
 export const ReviewRoutes = router;

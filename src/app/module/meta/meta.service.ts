@@ -1,13 +1,14 @@
 import type { JwtPayload } from "jsonwebtoken";
 import { EventStatus, PaymentStatus } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
+import ApiError from "../../utils/ApiError.js";
 import { UserRole } from "../user/user.interface.js";
 
 const fetchDashboardMetaData = async (user: JwtPayload) => {
   const payload: any = user as any;
 
   if (!payload?.role) {
-    throw new Error("Invalid user payload");
+    throw new ApiError(400, "Invalid user payload");
   }
 
   // ADMIN dashboard
@@ -15,109 +16,112 @@ const fetchDashboardMetaData = async (user: JwtPayload) => {
     const [
       totalUsers,
       totalAdmins,
-      totalClients,
       totalHosts,
+      totalClients,
       totalEvents,
       totalCompletedEvents,
-      totalRejectedEvents,
+      totalCancelledEvents,
       pendingHostApplications,
-      pendingEventApplications,
+      paymentsSum,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { role: UserRole.ADMIN } }),
-      prisma.user.count({ where: { role: UserRole.USER } }),
       prisma.user.count({ where: { role: UserRole.HOST } }),
-      await prisma.event.count({
-        where: {
-          status: {
-            in: [EventStatus.OPEN, EventStatus.FULL],
-          },
-        },
+      prisma.user.count({ where: { role: UserRole.USER } }),
+      prisma.event.count({
+        where: { status: { in: [EventStatus.OPEN, EventStatus.FULL] } },
       }),
       prisma.event.count({ where: { status: EventStatus.COMPLETED } }),
       prisma.event.count({ where: { status: EventStatus.CANCELLED } }),
-      // prisma.payment.aggregate({ _sum: { amount: true }, where: { paymentStatus: { not: PaymentStatus.CANCELLED || PaymentStatus.PENDING || PaymentStatus.REFUNDED} } }),
-      // prisma.admin.aggregate({ _sum: { income: true } }),
-      // prisma.hostApplication.count({ where: { status: HostApplicationStatus.PENDING } }),
-      // prisma.event.count({ where: { status: EventStatus.PENDING } })
-    ] as any);
-
-    // const totalPaymentsIncome = Number(paymentsSumRes._sum?.amount || 0);
-    // const totalAdminIncome = Number(adminIncomeRes._sum?.income || 0);
+      prisma.hostApplication.count({ where: { status: "PENDING" } }),
+      prisma.payment.aggregate({
+        _sum: { amount: true },
+        where: { status: PaymentStatus.COMPLETED },
+      }),
+    ]);
 
     return {
       role: UserRole.ADMIN,
       totalUsers,
       totalAdmins,
-      totalHosts,
       totalClients,
+      totalHosts,
       totalEvents,
       totalCompletedEvents,
-      totalRejectedEvents,
-      // totalPaymentsIncome,
-      // totalAdminIncome,
+      totalRejectedEvents: totalCancelledEvents,
       pendingHostApplications,
-      pendingEventApplications,
+      pendingEventApplications: 0,
+      totalPaymentsIncome: Number(paymentsSum._sum.amount ?? 0),
+      totalAdminIncome: 0,
     };
   }
 
   // HOST dashboard
   if (payload.role === UserRole.HOST) {
-    if (!payload.email) throw new Error("Host email missing in token");
+    if (!payload.email) throw new ApiError(400, "Host email missing in token");
 
     const host = await prisma.user.findUnique({
       where: { email: payload.email },
     });
-    if (!host) throw new Error("Host profile not found");
+    if (!host) throw new ApiError(404, "Host profile not found");
 
-    const [
-      totalEvents,
-      totalCompletedEvents,
-      totalRejectedEvents,
-      totalPendingEvents,
-      paymentsSumRes,
-    ] = await Promise.all([
-      await prisma.event.count({
-        where: {
-          hostId: host.id,
-          status: {
-            in: [EventStatus.OPEN, EventStatus.FULL],
+    const [totalEvents, totalCompletedEvents, totalCancelledEvents, totalOpenEvents, paymentsSum] =
+      await Promise.all([
+        prisma.event.count({
+          where: { hostId: host.id, status: { in: [EventStatus.OPEN, EventStatus.FULL] } },
+        }),
+        prisma.event.count({ where: { hostId: host.id, status: EventStatus.COMPLETED } }),
+        prisma.event.count({ where: { hostId: host.id, status: EventStatus.CANCELLED } }),
+        prisma.event.count({ where: { hostId: host.id, status: EventStatus.OPEN } }),
+        // Income is scoped to this host's events (via booking -> event -> hostId).
+        prisma.payment.aggregate({
+          _sum: { amount: true },
+          where: {
+            status: PaymentStatus.COMPLETED,
+            booking: { event: { hostId: host.id } },
           },
-        },
-      }),
-      prisma.event.count({
-        where: { hostId: host.id, status: EventStatus.COMPLETED },
-      }),
-      prisma.event.count({
-        where: { hostId: host.id, status: EventStatus.CANCELLED },
-      }),
-      prisma.event.count({
-        where: { hostId: host.id, status: EventStatus.OPEN },
-      }),
-      prisma.payment.aggregate({
-        _sum: { amount: true },
-        where: { status: PaymentStatus.COMPLETED },
-      }),
-    ] as any);
+        }),
+      ]);
 
-    const totalPaymentsIncome = Number(paymentsSumRes._sum?.amount || 0);
+    const hostIncome = Number(paymentsSum._sum.amount ?? 0);
 
     return {
       role: UserRole.HOST,
       hostId: host.id,
-      // hostName: host.name,
+      hostName: host.fullName,
       totalEvents,
       totalCompletedEvents,
-      totalRejectedEvents,
-      totalPendingEvents,
-      totalPaymentsIncome,
-      // hostIncome: Number(host.income || 0),
-      // hostRating: Number(host.rating || 0),
-      // hostRatingCount: host.ratingCount || 0
+      totalRejectedEvents: totalCancelledEvents,
+      totalPendingEvents: totalOpenEvents,
+      totalPaymentsIncome: hostIncome,
+      hostIncome,
+      hostRating: Number(host.averageRating ?? 0),
+      hostRatingCount: host.totalReviews ?? 0,
     };
   }
 
-  throw new Error("Dashboard not available for this user role");
+  // USER dashboard
+  if (payload.role === UserRole.USER) {
+    const user = await prisma.user.findUnique({
+      where: { email: payload.email },
+    });
+    if (!user) throw new ApiError(404, "User not found");
+
+    const [totalBookings, confirmedBookings, completedBookings] = await Promise.all([
+      prisma.booking.count({ where: { userId: user.id } }),
+      prisma.booking.count({ where: { userId: user.id, status: "CONFIRMED" } }),
+      prisma.booking.count({ where: { userId: user.id, status: "COMPLETED" } }),
+    ]);
+
+    return {
+      role: UserRole.USER,
+      totalBookings,
+      confirmedBookings,
+      completedBookings,
+    };
+  }
+
+  throw new ApiError(403, "Dashboard not available for this user role");
 };
 
 const getLandingPageStats = async () => {
@@ -131,21 +135,15 @@ const getLandingPageStats = async () => {
     avgHostRating,
   ] = await Promise.all([
     prisma.event.count({
-      where: {
-        status: {
-          in: [EventStatus.OPEN, EventStatus.FULL],
-        },
-      },
+      where: { status: { in: [EventStatus.OPEN, EventStatus.FULL] } },
     }),
     prisma.event.count({ where: { status: EventStatus.COMPLETED } }),
-    // prisma.payment.count({ where: { paymentStatus: PaymentStatus.COMPLETED } }),
+    prisma.payment.count({ where: { status: PaymentStatus.COMPLETED } }),
     prisma.user.count({ where: { role: UserRole.USER } }),
     prisma.user.count({ where: { role: UserRole.HOST } }),
     prisma.review.count(),
-    // prisma.user.aggregate({ _avg: { rating: true } })
-  ] as any);
-
-  const averageHostRating = Number(avgHostRating._avg?.rating || 0).toFixed(2);
+    prisma.user.aggregate({ _avg: { averageRating: true } }),
+  ]);
 
   return {
     stats: {
@@ -155,7 +153,7 @@ const getLandingPageStats = async () => {
       totalClients,
       totalHosts,
       totalReviews,
-      averageHostRating: Number(averageHostRating),
+      averageHostRating: Number(Number(avgHostRating._avg.averageRating ?? 0).toFixed(2)),
     },
     message: "Landing page statistics retrieved successfully",
   };
