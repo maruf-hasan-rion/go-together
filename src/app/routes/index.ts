@@ -2,6 +2,7 @@ import express from "express";
 import { AdminRoutes } from "../module/admin/admin.route.js";
 import { AuthRoutes } from "../module/auth/auth.route.js";
 import { BookingRoutes } from "../module/booking/booking.route.js";
+import { ContactRoutes } from "../module/contact/contact.route.js";
 import { EventRoutes } from "../module/event/event.route.js";
 import { MetaRoutes } from "../module/meta/meta.route.js";
 import { PaymentRoutes } from "../module/payment/payment.route.js";
@@ -23,6 +24,10 @@ const moduleRoutes = [
   {
     path: "/users",
     route: UserPublicRoutes,
+  },
+  {
+    path: "/contact",
+    route: ContactRoutes,
   },
   {
     path: "/auth",
