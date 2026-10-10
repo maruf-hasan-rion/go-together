@@ -6,6 +6,7 @@ import { EventRoutes } from "../module/event/event.route.js";
 import { MetaRoutes } from "../module/meta/meta.route.js";
 import { PaymentRoutes } from "../module/payment/payment.route.js";
 import { ReviewRoutes } from "../module/review/review.route.js";
+import { UserPublicRoutes } from "../module/user/user.public.route.js";
 import { UserRoutes } from "../module/user/user.route.js";
 
 const router = express.Router();
@@ -20,6 +21,10 @@ const moduleRoutes = [
     route: UserRoutes,
   },
   {
+    path: "/users",
+    route: UserPublicRoutes,
+  },
+  {
     path: "/auth",
     route: AuthRoutes,
   },
@@ -28,17 +33,13 @@ const moduleRoutes = [
     route: EventRoutes,
   },
   {
-    path: "/review",
+    path: "/reviews",
     route: ReviewRoutes,
   },
   {
     path: "/bookings",
     route: BookingRoutes,
   },
-  // {
-  //   path: "/reviews",
-  //   route: ReviewRoutes,
-  // },
   {
     path: "/payments",
     route: PaymentRoutes,

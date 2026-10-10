@@ -42,8 +42,20 @@ const updateMyProfile = catchAsync(async (req: Request & { user?: IJWTPayload },
   });
 });
 
+const getPublicProfile = catchAsync(async (req: Request, res: Response) => {
+  const result = await UserService.getPublicProfile(req.params.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Profile retrieved successfully",
+    data: result,
+  });
+});
+
 export const UserController = {
   createUser,
   // becomeHost,
   updateMyProfile,
+  getPublicProfile,
 };

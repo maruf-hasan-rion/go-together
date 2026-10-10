@@ -73,10 +73,7 @@ const login = async (payload: { email: string; password: string }) => {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid email or password!");
   }
   if (user.status !== UserStatus.ACTIVE || user.deletedAt) {
-    throw new ApiError(
-      httpStatus.FORBIDDEN,
-      "Your account is not active. Contact support.",
-    );
+    throw new ApiError(httpStatus.FORBIDDEN, "Your account is not active. Contact support.");
   }
 
   const isCorrectPassword = await bcrypt.compare(payload.password, user.password);
@@ -348,6 +345,26 @@ const applyHost = async (userId: string | undefined, data: { message: string } |
   });
 
   if (existing) {
+    if (existing.status === "REJECTED") {
+      // A rejected applicant may re-apply: reset the row back to PENDING.
+      const updated = await prisma.hostApplication.update({
+        where: { id: existing.id },
+        data: {
+          status: "PENDING",
+          message: data.message,
+          reviewedBy: null,
+          reviewedAt: null,
+          rejectReason: null,
+        },
+      });
+
+      return {
+        success: true,
+        message: "Application re-submitted successfully. We will review within 24-48 hours.",
+        data: updated,
+      };
+    }
+
     return {
       success: false,
       message: `Application already ${existing.status.toLowerCase()}`,
@@ -375,7 +392,35 @@ const applyHost = async (userId: string | undefined, data: { message: string } |
   };
 };
 
+/**
+ * JSON registration alias for POST /auth/register. Mirrors the multipart
+ * /user/create-user flow but with a plain JSON body.
+ */
+const register = async (payload: { fullName: string; email: string; password: string }) => {
+  const existing = await prisma.user.findUnique({
+    where: { email: payload.email },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new ApiError(httpStatus.CONFLICT, "Email is already registered");
+  }
+
+  const hashedPassword = await bcrypt.hash(payload.password, config.salt_round);
+
+  const user = await prisma.user.create({
+    data: {
+      fullName: payload.fullName,
+      email: payload.email,
+      password: hashedPassword,
+    },
+    select: userPublicSelect,
+  });
+
+  return user;
+};
+
 export const AuthService = {
+  register,
   login,
   googleLogin,
   refreshToken,

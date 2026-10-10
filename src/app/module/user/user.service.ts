@@ -79,8 +79,23 @@ const updateMyProfile = async (user: IJWTPayload, req: Request) => {
   return profileInfo;
 };
 
+const getPublicProfile = async (id: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { ...userPublicSelect, deletedAt: true },
+  });
+
+  if (!user || user.deletedAt) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  const { deletedAt: _deletedAt, ...publicUser } = user;
+  return publicUser;
+};
+
 export const UserService = {
   createUser,
   // becomeHost,
   updateMyProfile,
+  getPublicProfile,
 };

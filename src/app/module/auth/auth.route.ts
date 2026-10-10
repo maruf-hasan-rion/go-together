@@ -8,6 +8,13 @@ import { AuthValidation } from "./auth.validation.js";
 
 const router = express.Router();
 
+router.post(
+  "/register",
+  authLimiter,
+  validateRequest(AuthValidation.register),
+  AuthController.register,
+);
+
 router.post("/login", authLimiter, validateRequest(AuthValidation.login), AuthController.login);
 
 router.post(
@@ -31,11 +38,7 @@ router.post(
   AuthController.resetPassword,
 );
 
-router.post(
-  "/refresh-token",
-  authLimiter,
-  AuthController.refreshToken,
-);
+router.post("/refresh-token", authLimiter, AuthController.refreshToken);
 
 router.post("/logout", AuthController.logout);
 
@@ -46,11 +49,7 @@ router.post(
   AuthController.changePassword,
 );
 
-router.get(
-  "/me",
-  auth(UserRole.USER, UserRole.HOST, UserRole.ADMIN),
-  AuthController.getMe,
-);
+router.get("/me", auth(UserRole.USER, UserRole.HOST, UserRole.ADMIN), AuthController.getMe);
 
 router.post(
   "/apply-host",

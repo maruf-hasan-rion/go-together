@@ -5,6 +5,17 @@ import catchAsync from "../../utils/catchAsync.js";
 import sendResponse from "../../utils/sendResponse.js";
 import { AuthService } from "./auth.service.js";
 
+const register = catchAsync(async (req: Request, res: Response) => {
+  const result = await AuthService.register(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "User registered successfully!",
+    data: result,
+  });
+});
+
 const login = catchAsync(async (req: Request, res: Response) => {
   const result = await AuthService.login(req.body);
   const { accessToken, refreshToken } = result;
@@ -70,33 +81,31 @@ const logout = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const changePassword = catchAsync(
-  async (req: Request & { user?: IJWTPayload }, res: Response) => {
-    const userId = req.user?.id;
-    if (!userId) {
-      sendResponse(res, {
-        statusCode: httpStatus.UNAUTHORIZED,
-        success: false,
-        message: "Unauthorized",
-        data: null,
-      });
-      return;
-    }
-
-    await AuthService.changePassword(userId, req.body);
-
-    // All sessions were revoked; clear tokens so the client re-logs in.
-    res.clearCookie("accessToken", { secure: true, httpOnly: true, sameSite: "none" });
-    res.clearCookie("refreshToken", { secure: true, httpOnly: true, sameSite: "none" });
-
+const changePassword = catchAsync(async (req: Request & { user?: IJWTPayload }, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) {
     sendResponse(res, {
-      statusCode: httpStatus.OK,
-      success: true,
-      message: "Password changed successfully. Please log in again.",
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: "Unauthorized",
       data: null,
     });
-  },
-);
+    return;
+  }
+
+  await AuthService.changePassword(userId, req.body);
+
+  // All sessions were revoked; clear tokens so the client re-logs in.
+  res.clearCookie("accessToken", { secure: true, httpOnly: true, sameSite: "none" });
+  res.clearCookie("refreshToken", { secure: true, httpOnly: true, sameSite: "none" });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Password changed successfully. Please log in again.",
+    data: null,
+  });
+});
 
 const getMe = catchAsync(async (req: Request & { user?: IJWTPayload }, res: Response) => {
   const userId = req.user?.id;
@@ -191,6 +200,7 @@ const googleLogin = catchAsync(async (req: Request, res: Response) => {
 });
 
 export const AuthController = {
+  register,
   login,
   googleLogin,
   refreshToken,
