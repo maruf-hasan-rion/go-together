@@ -15,6 +15,9 @@ pnpm exec prisma generate
 echo "Applying migrations..."
 pnpm exec prisma migrate deploy
 
+echo "Seeding demo accounts..."
+pnpm run seed
+
 echo "Building TS..."
 pnpm run build
 
