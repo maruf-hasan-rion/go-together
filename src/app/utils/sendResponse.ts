@@ -1,5 +1,29 @@
 import type { Response } from "express";
 
+type FlattenedDecimal = { s: number; e: number; d: number[] };
+
+/**
+ * Rebuild a number from a base-1e7 digit array (decimal.js internals) so a
+ * Decimal that already lost its prototype — e.g. `{ s: 1, e: 2, d: [400] }`
+ * from a prior JSON round-trip — still serializes as a real number.
+ */
+const decodeBase1e7 = (s: number, e: number, d: number[]): number => {
+  const digits = d.map((n, i) => (i === 0 ? String(n) : String(n).padStart(7, "0"))).join("");
+  return s * Number(digits) * 10 ** (e - (digits.length - 1));
+};
+
+const hasToNumber = (value: unknown): value is { toNumber: () => number } =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { toNumber?: unknown }).toNumber === "function";
+
+const isFlattenedDecimal = (value: unknown): value is FlattenedDecimal =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as FlattenedDecimal).s === "number" &&
+  typeof (value as FlattenedDecimal).e === "number" &&
+  Array.isArray((value as FlattenedDecimal).d);
+
 /**
  * Recursively convert Prisma Decimal values to plain numbers so money fields
  * serialize as JSON numbers (Decimal's own toJSON would emit strings).
@@ -10,11 +34,10 @@ const normalize = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(normalize);
 
   if (typeof value === "object") {
-    const obj = value as { constructor?: { name?: string }; toNumber?: () => number };
-    if (obj.constructor?.name === "Decimal" && typeof obj.toNumber === "function") {
-      return obj.toNumber();
-    }
     if (value instanceof Date) return value;
+
+    if (hasToNumber(value)) return value.toNumber();
+    if (isFlattenedDecimal(value)) return decodeBase1e7(value.s, value.e, value.d);
 
     const out: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
