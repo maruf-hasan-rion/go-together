@@ -16,8 +16,8 @@ type DemoAccount = {
  */
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   { email: "admin@gmail.com", fullName: "Admin", role: UserRole.ADMIN, password: "123456" },
-  { email: "host@gotogether.dev", fullName: "Demo Host", role: UserRole.HOST, password: "Demo@1234" },
-  { email: "user@gotogether.dev", fullName: "Demo User", role: UserRole.USER, password: "Demo@1234" },
+  { email: "host@gmail.com", fullName: "Demo Host", role: UserRole.HOST, password: "123456" },
+  { email: "user@gmail.com", fullName: "Demo User", role: UserRole.USER, password: "123456" },
 ];
 
 async function main() {
