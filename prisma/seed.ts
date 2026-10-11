@@ -3,19 +3,27 @@ import bcrypt from "bcryptjs";
 import { UserRole } from "../src/generated/prisma/client.js";
 import { prisma } from "../src/app/lib/prisma.js";
 
-/** Shared password for every demo account (see the frontend "Demo Login" buttons). */
-export const DEMO_PASSWORD = "Demo@1234";
+type DemoAccount = {
+  email: string;
+  fullName: string;
+  role: UserRole;
+  password: string;
+};
 
-export const DEMO_ACCOUNTS = [
-  { email: "admin@gotogether.dev", fullName: "Demo Admin", role: UserRole.ADMIN },
-  { email: "host@gotogether.dev", fullName: "Demo Host", role: UserRole.HOST },
-  { email: "user@gotogether.dev", fullName: "Demo User", role: UserRole.USER },
-] as const;
+/**
+ * Accounts created/refreshed by `pnpm run seed`. These must match
+ * `go-together-frontend/src/lib/demo-credentials.ts` (one-click login).
+ */
+export const DEMO_ACCOUNTS: DemoAccount[] = [
+  { email: "admin@gmail.com", fullName: "Admin", role: UserRole.ADMIN, password: "123456" },
+  { email: "host@gotogether.dev", fullName: "Demo Host", role: UserRole.HOST, password: "Demo@1234" },
+  { email: "user@gotogether.dev", fullName: "Demo User", role: UserRole.USER, password: "Demo@1234" },
+];
 
 async function main() {
-  const password = await bcrypt.hash(DEMO_PASSWORD, 10);
-
   for (const account of DEMO_ACCOUNTS) {
+    const password = await bcrypt.hash(account.password, 10);
+
     const user = await prisma.user.upsert({
       where: { email: account.email },
       update: {
@@ -43,10 +51,10 @@ async function main() {
       });
     }
 
-    console.log(`✓ ${account.role.padEnd(6)} ${account.email}`);
+    console.log(`✓ ${account.role.padEnd(6)} ${account.email}  (password: ${account.password})`);
   }
 
-  console.log(`\nSeeded ${DEMO_ACCOUNTS.length} demo accounts — password: ${DEMO_PASSWORD}`);
+  console.log(`\nSeeded ${DEMO_ACCOUNTS.length} demo accounts.`);
 }
 
 main()
