@@ -1,3 +1,4 @@
+import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
 import { userPublicSelect } from "../../serializers/user.js";
 import type { IJWTPayload } from "../../types/common.js";
@@ -5,7 +6,13 @@ import type { IPaginationOptions } from "../../types/pagination.js";
 import ApiError from "../../utils/ApiError.js";
 import { paginationHelper } from "../../utils/pagination.js";
 
-const addReview = async (user: IJWTPayload, payload: any) => {
+type TAddReviewPayload = {
+  eventId: string;
+  rating: number;
+  comment?: string;
+};
+
+const addReview = async (user: IJWTPayload, payload: TAddReviewPayload) => {
   const { rating, comment, eventId } = payload;
 
   const userInfo = await prisma.user.findUniqueOrThrow({
@@ -74,7 +81,7 @@ const addReview = async (user: IJWTPayload, payload: any) => {
   });
 };
 
-const listReviews = async (where: any, options: IPaginationOptions = {}) => {
+const listReviews = async (where: Prisma.ReviewWhereInput, options: IPaginationOptions = {}) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
 
   const [reviews, total] = await Promise.all([
